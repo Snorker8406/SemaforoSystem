@@ -1,0 +1,32 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
+
+namespace SemaforoSystem.Server.Models;
+
+[Table("sizes")]
+public partial class Size
+{
+    [Key]
+    [Column("size_id")]
+    public int SizeId { get; set; }
+
+    [Column("name")]
+    [StringLength(50)]
+    public string Name { get; set; } = null!;
+
+    [Column("description")]
+    [StringLength(250)]
+    public string? Description { get; set; }
+
+    [InverseProperty("Size")]
+    public virtual ICollection<ProductPrice> ProductPrices { get; set; } = new List<ProductPrice>();
+
+    [InverseProperty("Size")]
+    public virtual ICollection<SalesDetail> SalesDetails { get; set; } = new List<SalesDetail>();
+
+    [InverseProperty("Size")]
+    public virtual ICollection<Stock> Stocks { get; set; } = new List<Stock>();
+}

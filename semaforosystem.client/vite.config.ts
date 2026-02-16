@@ -7,5 +7,6 @@ export default defineConfig({
   server: {
     port: 2488,
     strictPort: true,
+    open: true,
   },
 })
