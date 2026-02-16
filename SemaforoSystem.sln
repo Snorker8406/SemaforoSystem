@@ -1,0 +1,33 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36930.0 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "semaforosystem.client", "semaforosystem.client\semaforosystem.client.esproj", "{FCDB2F5A-257F-7472-DBE3-2FB4FA5C3926}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SemaforoSystem.Server", "SemaforoSystem.Server\SemaforoSystem.Server.csproj", "{BF8D32B1-8EE1-40EF-97FF-CDCA505E6213}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FCDB2F5A-257F-7472-DBE3-2FB4FA5C3926}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FCDB2F5A-257F-7472-DBE3-2FB4FA5C3926}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FCDB2F5A-257F-7472-DBE3-2FB4FA5C3926}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{FCDB2F5A-257F-7472-DBE3-2FB4FA5C3926}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FCDB2F5A-257F-7472-DBE3-2FB4FA5C3926}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FCDB2F5A-257F-7472-DBE3-2FB4FA5C3926}.Release|Any CPU.Deploy.0 = Release|Any CPU
+		{BF8D32B1-8EE1-40EF-97FF-CDCA505E6213}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BF8D32B1-8EE1-40EF-97FF-CDCA505E6213}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BF8D32B1-8EE1-40EF-97FF-CDCA505E6213}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BF8D32B1-8EE1-40EF-97FF-CDCA505E6213}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {334A096E-1D77-427E-BFDB-457428E7E652}
+	EndGlobalSection
+EndGlobal
