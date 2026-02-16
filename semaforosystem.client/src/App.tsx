@@ -1,10 +1,13 @@
 import { TooltipProvider } from '@/components/ui/tooltip'
-import DashboardShell from '@/pages/DashboardShell'
+import Login from '@/pages/LoginPage'
+// import DashboardShell from '@/pages/DashboardShell'
 
 function App() {
   return (
     <TooltipProvider>
-      <DashboardShell />
+      {/* TODO: Add routing - for now showing Login page */}
+      <Login />
+      {/* <DashboardShell /> */}
     </TooltipProvider>
   )
 }
