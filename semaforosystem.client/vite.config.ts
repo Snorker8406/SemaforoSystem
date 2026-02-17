@@ -15,5 +15,17 @@ export default defineConfig({
     port: 2488,
     strictPort: true,
     open: true,
+    proxy: {
+      '/Auth': {
+        target: 'https://localhost:7106',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/api': {
+        target: 'https://localhost:7106',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
 })

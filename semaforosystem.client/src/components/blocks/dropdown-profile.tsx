@@ -9,6 +9,8 @@ import {
   CirclePlusIcon,
   LogOutIcon
 } from 'lucide-react'
+import { useMutation } from '@tanstack/react-query'
+import { useRouter } from '@tanstack/react-router'
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -20,6 +22,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
+import { logout } from '@/services/auth-service'
 
 type Props = {
   trigger: ReactNode
@@ -28,6 +31,15 @@ type Props = {
 }
 
 const ProfileDropdown = ({ trigger, defaultOpen, align = 'end' }: Props) => {
+  const router = useRouter()
+
+  const logoutMutation = useMutation({
+    mutationFn: logout,
+    onSuccess: () => {
+      router.navigate({ to: '/login' })
+    },
+  })
+
   return (
     <DropdownMenu defaultOpen={defaultOpen}>
       <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
@@ -82,9 +94,13 @@ const ProfileDropdown = ({ trigger, defaultOpen, align = 'end' }: Props) => {
 
         <DropdownMenuSeparator />
 
-        <DropdownMenuItem className='px-4 py-2.5 text-base text-destructive'>
+        <DropdownMenuItem
+          className='px-4 py-2.5 text-base text-destructive'
+          disabled={logoutMutation.isPending}
+          onClick={() => logoutMutation.mutate()}
+        >
           <LogOutIcon className='size-5' />
-          <span>Logout</span>
+          <span>{logoutMutation.isPending ? 'Cerrando sesión...' : 'Cerrar sesión'}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

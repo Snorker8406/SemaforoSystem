@@ -8,6 +8,16 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
 // Add services to the container.
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Development", policy =>
+    {
+        policy.WithOrigins("http://localhost:2488")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
 
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -25,6 +35,17 @@ var app = builder.Build();
 
 app.UseDefaultFiles();
 app.MapStaticAssets();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("Development");
+}
+
+app.UseHttpsRedirection();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapGroup("/Auth").MapIdentityApi<ApplicationUser>();
 
 // Configure the HTTP request pipeline.
@@ -36,10 +57,6 @@ if (app.Environment.IsDevelopment())
         options.SwaggerEndpoint("/openapi/v1.json", "SemaforoSystem API v1");
     });
 }
-
-app.UseHttpsRedirection();
-
-app.UseAuthorization();
 
 app.MapControllers();
 

@@ -2,25 +2,56 @@
 
 import { useState } from 'react'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
+import { useMutation } from '@tanstack/react-query'
+import { useRouter } from '@tanstack/react-router'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { login, type LoginRequest } from '@/services/auth-service'
+import { ApiError } from '@/lib/api-client'
 
 const LoginForm = () => {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
+
+  const loginMutation = useMutation({
+    mutationFn: (credentials: LoginRequest) => login(credentials),
+    onSuccess: () => {
+      // La cookie de sesión ya fue seteada por el servidor
+      router.navigate({ to: '/' })
+    },
+    onError: (err) => {
+      if (err instanceof ApiError) {
+        if (err.status === 401) {
+          setError('Credenciales inválidas. Verifica tu email y contraseña.')
+        } else {
+          setError(`Error del servidor (${err.status}). Intenta de nuevo.`)
+        }
+      } else {
+        setError('No se pudo conectar al servidor. Verifica tu conexión.')
+      }
+    },
+  })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
-    // Simulate login
-    setTimeout(() => setIsLoading(false), 2000)
+    setError(null)
+    loginMutation.mutate({ email, password })
   }
 
   return (
     <form onSubmit={handleSubmit} className='space-y-4'>
+      {error && (
+        <div className='rounded-md bg-destructive/15 p-3 text-sm text-destructive'>
+          {error}
+        </div>
+      )}
+
       <div className='space-y-2'>
         <Label htmlFor='email'>Email</Label>
         <Input
@@ -29,6 +60,8 @@ const LoginForm = () => {
           placeholder='correo@ejemplo.com'
           required
           autoComplete='email'
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
         />
       </div>
 
@@ -50,6 +83,8 @@ const LoginForm = () => {
             required
             autoComplete='current-password'
             className='pr-10'
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
           />
           <Button
             type='button'
@@ -75,8 +110,8 @@ const LoginForm = () => {
         </Label>
       </div>
 
-      <Button type='submit' className='w-full' disabled={isLoading}>
-        {isLoading ? (
+      <Button type='submit' className='w-full' disabled={loginMutation.isPending}>
+        {loginMutation.isPending ? (
           <>
             <Loader2 className='mr-2 size-4 animate-spin' />
             Iniciando sesión...
