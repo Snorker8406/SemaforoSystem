@@ -1,4 +1,6 @@
 import type { ComponentType, SVGAttributes } from 'react'
+import { Link } from '@tanstack/react-router'
+import { ChevronRight } from 'lucide-react'
 
 import {
   ArrowRightLeftIcon,
@@ -19,6 +21,11 @@ import {
 } from 'lucide-react'
 
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
+import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
@@ -28,15 +35,26 @@ import {
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  SidebarRail,
 } from '@/components/ui/sidebar'
 
 // ── Tipos ────────────────────────────────────────────────
+
+interface NavSubItem {
+  label: string
+  href: string
+}
 
 interface NavItem {
   label: string
   href: string
   icon: ComponentType<SVGAttributes<SVGElement>>
   badge?: string | number
+  isActive?: boolean
+  children?: NavSubItem[]
 }
 
 interface NavGroup {
@@ -56,7 +74,16 @@ const navigation: NavGroup[] = [
     label: 'Administracion',
     items: [
       { label: 'Proveedores', href: '/proveedores', icon: TruckIcon },
-      { label: 'Escuelas', href: '/escuelas', icon: SchoolIcon },
+      {
+        label: 'Escuelas',
+        href: '#',
+        icon: SchoolIcon,
+        isActive: true,
+        children: [
+          { label: 'Administrar Escuelas', href: '/schools' },
+          { label: 'Niveles', href: '/schools/levels' },
+        ],
+      },
       { label: 'Content Performance', href: '#', icon: ChartSplineIcon },
       { label: 'Audience Insight', href: '#', icon: UsersIcon },
       { label: 'Engagement Metrics', href: '#', icon: ChartPieIcon },
@@ -83,33 +110,66 @@ const navigation: NavGroup[] = [
 
 const AppSidebar = () => {
   return (
-    <Sidebar>
+    <Sidebar collapsible='icon'>
       <SidebarContent>
         {navigation.map((group, groupIndex) => (
           <SidebarGroup key={groupIndex}>
             {group.label && <SidebarGroupLabel>{group.label}</SidebarGroupLabel>}
             <SidebarGroupContent>
               <SidebarMenu>
-                {group.items.map((item) => (
-                  <SidebarMenuItem key={item.label}>
-                    <SidebarMenuButton asChild>
-                      <a href={item.href}>
-                        <item.icon />
-                        <span>{item.label}</span>
-                      </a>
-                    </SidebarMenuButton>
-                    {item.badge !== undefined && (
-                      <SidebarMenuBadge className='bg-primary/10 rounded-full'>
-                        {item.badge}
-                      </SidebarMenuBadge>
-                    )}
-                  </SidebarMenuItem>
-                ))}
+                {group.items.map((item) =>
+                  item.children ? (
+                    <Collapsible
+                      key={item.label}
+                      asChild
+                      defaultOpen={item.isActive}
+                      className='group/collapsible'
+                    >
+                      <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton tooltip={item.label}>
+                            {<item.icon />}
+                            <span>{item.label}</span>
+                            <ChevronRight className='ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90' />
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            {item.children.map((sub) => (
+                              <SidebarMenuSubItem key={sub.label}>
+                                <SidebarMenuSubButton asChild>
+                                  <Link to={sub.href}>
+                                    <span>{sub.label}</span>
+                                  </Link>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            ))}
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      </SidebarMenuItem>
+                    </Collapsible>
+                  ) : (
+                    <SidebarMenuItem key={item.label}>
+                      <SidebarMenuButton asChild tooltip={item.label}>
+                        <Link to={item.href === '#' ? '/' : item.href}>
+                          {<item.icon />}
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                      {item.badge !== undefined && (
+                        <SidebarMenuBadge className='bg-primary/10 rounded-full'>
+                          {item.badge}
+                        </SidebarMenuBadge>
+                      )}
+                    </SidebarMenuItem>
+                  ),
+                )}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         ))}
       </SidebarContent>
+      <SidebarRail />
     </Sidebar>
   )
 }
