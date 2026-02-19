@@ -1,6 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+
+import {
+  ImageIcon,
+  UploadIcon,
+  Trash2Icon,
+  CameraIcon,
+} from 'lucide-react'
 
 import {
   Dialog,
@@ -31,6 +38,12 @@ import {
   createSchool,
   updateSchool,
   getSchoolLevels,
+  uploadSchoolLogo,
+  uploadSchoolPhoto,
+  deleteSchoolLogo,
+  deleteSchoolPhoto,
+  getSchoolLogoUrl,
+  getSchoolPhotoUrl,
 } from '@/services/school-service'
 import { ApiError } from '@/lib/api-client'
 
@@ -78,6 +91,7 @@ export default function SchoolFormDialog({
 
   const [form, setForm] = useState<FormData>(emptyForm)
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({})
+  const [prevOpen, setPrevOpen] = useState(false)
 
   // Fetch school levels for select
   const { data: levels = [] } = useQuery({
@@ -86,25 +100,28 @@ export default function SchoolFormDialog({
     staleTime: 10 * 60 * 1000,
   })
 
-  // Populate form when editing
-  useEffect(() => {
-    if (open && school) {
-      setForm({
-        schoolLevelId: String(school.schoolLevelId),
-        name: school.name,
-        address: school.address,
-        ciudad: school.ciudad ?? '',
-        state: school.state ?? '',
-        phoneNumber: school.phoneNumber ?? '',
-        principalInfo: school.principalInfo ?? '',
-        email: school.email ?? '',
-        description: school.description ?? '',
-      })
-    } else if (open) {
-      setForm(emptyForm)
-    }
+  // Populate form when dialog opens (adjust state during render)
+  if (open && !prevOpen) {
+    setPrevOpen(true)
+    setForm(
+      school
+        ? {
+            schoolLevelId: String(school.schoolLevelId),
+            name: school.name,
+            address: school.address,
+            ciudad: school.ciudad ?? '',
+            state: school.state ?? '',
+            phoneNumber: school.phoneNumber ?? '',
+            principalInfo: school.principalInfo ?? '',
+            email: school.email ?? '',
+            description: school.description ?? '',
+          }
+        : emptyForm,
+    )
     setErrors({})
-  }, [open, school])
+  } else if (!open && prevOpen) {
+    setPrevOpen(false)
+  }
 
   // ── Mutations ────────────────────────────────────────
 
@@ -140,7 +157,90 @@ export default function SchoolFormDialog({
     },
   })
 
-  const isPending = createMutation.isPending || updateMutation.isPending
+  // ── Image mutations (edit mode only) ─────────────────
+
+  const logoInputRef = useRef<HTMLInputElement>(null)
+  const photoInputRef = useRef<HTMLInputElement>(null)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+
+  const uploadLogoMutation = useMutation({
+    mutationFn: (file: File) => uploadSchoolLogo(school!.schoolId, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['schools'] })
+      toast.success('Logo actualizado')
+    },
+    onError: () => toast.error('Error al subir el logo'),
+  })
+
+  const uploadPhotoMutation = useMutation({
+    mutationFn: (file: File) => uploadSchoolPhoto(school!.schoolId, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['schools'] })
+      toast.success('Foto actualizada')
+    },
+    onError: () => toast.error('Error al subir la foto'),
+  })
+
+  const deleteLogoMutation = useMutation({
+    mutationFn: () => deleteSchoolLogo(school!.schoolId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['schools'] })
+      setLogoPreview(null)
+      toast.success('Logo eliminado')
+    },
+    onError: () => toast.error('Error al eliminar el logo'),
+  })
+
+  const deletePhotoMutation = useMutation({
+    mutationFn: () => deleteSchoolPhoto(school!.schoolId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['schools'] })
+      setPhotoPreview(null)
+      toast.success('Foto eliminada')
+    },
+    onError: () => toast.error('Error al eliminar la foto'),
+  })
+
+  function handleFileSelect(
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: 'logo' | 'photo',
+  ) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Solo se permiten archivos de imagen.')
+      return
+    }
+
+    const maxSize = type === 'logo' ? 2 * 1024 * 1024 : 5 * 1024 * 1024
+    if (file.size > maxSize) {
+      toast.error(`El archivo excede el tamaño máximo (${type === 'logo' ? '2 MB' : '5 MB'}).`)
+      return
+    }
+
+    // Show preview
+    const url = URL.createObjectURL(file)
+    if (type === 'logo') {
+      setLogoPreview(url)
+      uploadLogoMutation.mutate(file)
+    } else {
+      setPhotoPreview(url)
+      uploadPhotoMutation.mutate(file)
+    }
+
+    // Reset input so the same file can be selected again
+    e.target.value = ''
+  }
+
+  const isImageUploading =
+    uploadLogoMutation.isPending ||
+    uploadPhotoMutation.isPending ||
+    deleteLogoMutation.isPending ||
+    deletePhotoMutation.isPending
+
+  const isPending = createMutation.isPending || updateMutation.isPending || isImageUploading
 
   // ── Validation ───────────────────────────────────────
 
@@ -352,6 +452,125 @@ export default function SchoolFormDialog({
               rows={3}
             />
           </div>
+
+          {/* Row 7: Logo + Photo uploads */}
+          {isEditing ? (
+            <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+              {/* Logo */}
+              <div className='space-y-2'>
+                <Label>Logo</Label>
+                <div className='border-input bg-background flex flex-col items-center gap-2 rounded-lg border p-3'>
+                  {(logoPreview || school?.hasLogo) ? (
+                    <img
+                      src={logoPreview ?? getSchoolLogoUrl(school!.schoolId)}
+                      alt='Logo'
+                      className='size-20 rounded-lg border object-contain'
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                      }}
+                    />
+                  ) : (
+                    <div className='bg-muted flex size-20 items-center justify-center rounded-lg'>
+                      <ImageIcon className='text-muted-foreground size-8' />
+                    </div>
+                  )}
+                  <div className='flex gap-2'>
+                    <Button
+                      type='button'
+                      variant='outline'
+                      size='sm'
+                      className='gap-1'
+                      disabled={isImageUploading}
+                      onClick={() => logoInputRef.current?.click()}
+                    >
+                      <UploadIcon className='size-3' />
+                      Subir
+                    </Button>
+                    {(logoPreview || school?.hasLogo) && (
+                      <Button
+                        type='button'
+                        variant='outline'
+                        size='sm'
+                        className='text-destructive hover:text-destructive gap-1'
+                        disabled={isImageUploading}
+                        onClick={() => deleteLogoMutation.mutate()}
+                      >
+                        <Trash2Icon className='size-3' />
+                        Quitar
+                      </Button>
+                    )}
+                  </div>
+                  <p className='text-muted-foreground text-xs'>Máx. 2 MB</p>
+                  <input
+                    ref={logoInputRef}
+                    type='file'
+                    accept='image/*'
+                    className='hidden'
+                    onChange={(e) => handleFileSelect(e, 'logo')}
+                  />
+                </div>
+              </div>
+
+              {/* Photo */}
+              <div className='space-y-2'>
+                <Label>Foto</Label>
+                <div className='border-input bg-background flex flex-col items-center gap-2 rounded-lg border p-3'>
+                  {(photoPreview || school?.hasPhoto) ? (
+                    <img
+                      src={photoPreview ?? getSchoolPhotoUrl(school!.schoolId)}
+                      alt='Foto'
+                      className='h-20 w-full rounded-lg border object-cover'
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                      }}
+                    />
+                  ) : (
+                    <div className='bg-muted flex h-20 w-full items-center justify-center rounded-lg'>
+                      <CameraIcon className='text-muted-foreground size-8' />
+                    </div>
+                  )}
+                  <div className='flex gap-2'>
+                    <Button
+                      type='button'
+                      variant='outline'
+                      size='sm'
+                      className='gap-1'
+                      disabled={isImageUploading}
+                      onClick={() => photoInputRef.current?.click()}
+                    >
+                      <UploadIcon className='size-3' />
+                      Subir
+                    </Button>
+                    {(photoPreview || school?.hasPhoto) && (
+                      <Button
+                        type='button'
+                        variant='outline'
+                        size='sm'
+                        className='text-destructive hover:text-destructive gap-1'
+                        disabled={isImageUploading}
+                        onClick={() => deletePhotoMutation.mutate()}
+                      >
+                        <Trash2Icon className='size-3' />
+                        Quitar
+                      </Button>
+                    )}
+                  </div>
+                  <p className='text-muted-foreground text-xs'>Máx. 5 MB</p>
+                  <input
+                    ref={photoInputRef}
+                    type='file'
+                    accept='image/*'
+                    className='hidden'
+                    onChange={(e) => handleFileSelect(e, 'photo')}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className='text-muted-foreground text-xs italic'>
+              Las imágenes (logo y foto) podrán ser cargadas después de crear la escuela.
+            </p>
+          )}
 
           <DialogFooter>
             <Button

@@ -16,7 +16,7 @@ public partial class School
     [Column("school_level_id")]
     public int SchoolLevelId { get; set; }
 
-    [Column("create_date", TypeName = "timestamp without time zone")]
+    [Column("create_date", TypeName = "timestamp with time zone")]
     public DateTime? CreateDate { get; set; }
 
     [Column("name")]

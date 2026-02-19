@@ -1,4 +1,5 @@
 import apiClient from '@/lib/api-client'
+import { ApiError } from '@/lib/api-client'
 
 // ── Types ────────────────────────────────────────────────
 
@@ -31,7 +32,7 @@ export interface CreateSchoolRequest {
   description?: string | null
 }
 
-export interface UpdateSchoolRequest extends CreateSchoolRequest {}
+export type UpdateSchoolRequest = CreateSchoolRequest
 
 export interface SchoolLevel {
   schoolLevelId: number
@@ -125,4 +126,56 @@ export async function checkSchoolNameExists(
     `${BASE}/exists?${params.toString()}`,
   )
   return result.exists
+}
+
+// ── Image upload / delete ────────────────────────────────
+
+async function uploadImage(
+  schoolId: number,
+  type: 'logo' | 'photo',
+  file: File,
+): Promise<void> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await fetch(`${BASE}/${schoolId}/${type}`, {
+    method: 'PUT',
+    credentials: 'include',
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(text)
+    } catch {
+      parsed = text
+    }
+    throw new ApiError(response.status, response.statusText, parsed)
+  }
+}
+
+export async function uploadSchoolLogo(schoolId: number, file: File): Promise<void> {
+  return uploadImage(schoolId, 'logo', file)
+}
+
+export async function uploadSchoolPhoto(schoolId: number, file: File): Promise<void> {
+  return uploadImage(schoolId, 'photo', file)
+}
+
+export async function deleteSchoolLogo(schoolId: number): Promise<void> {
+  return apiClient.delete<void>(`${BASE}/${schoolId}/logo`)
+}
+
+export async function deleteSchoolPhoto(schoolId: number): Promise<void> {
+  return apiClient.delete<void>(`${BASE}/${schoolId}/photo`)
+}
+
+export function getSchoolLogoUrl(schoolId: number): string {
+  return `${BASE}/${schoolId}/logo`
+}
+
+export function getSchoolPhotoUrl(schoolId: number): string {
+  return `${BASE}/${schoolId}/photo`
 }

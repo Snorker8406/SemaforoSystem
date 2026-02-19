@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
@@ -56,19 +56,23 @@ export default function SchoolLevelFormDialog({
 
   const [form, setForm] = useState<FormData>(emptyForm)
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({})
+  const [prevOpen, setPrevOpen] = useState(false)
 
-  // Populate form when editing
-  useEffect(() => {
-    if (open && level) {
-      setForm({
-        name: level.name,
-        description: level.description ?? '',
-      })
-    } else if (open) {
-      setForm(emptyForm)
-    }
+  // Populate form when dialog opens (adjust state during render)
+  if (open && !prevOpen) {
+    setPrevOpen(true)
+    setForm(
+      level
+        ? {
+            name: level.name,
+            description: level.description ?? '',
+          }
+        : emptyForm,
+    )
     setErrors({})
-  }, [open, level])
+  } else if (!open && prevOpen) {
+    setPrevOpen(false)
+  }
 
   // ── Mutations ────────────────────────────────────────
 
