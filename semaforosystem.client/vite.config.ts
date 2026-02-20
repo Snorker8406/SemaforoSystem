@@ -20,11 +20,27 @@ export default defineConfig({
         target: 'https://localhost:7106',
         changeOrigin: true,
         secure: false,
+        configure: (proxy) => {
+          proxy.on('error', (err, _req, res) => {
+            if (!res.headersSent) {
+              res.writeHead(502, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ message: 'Backend not ready' }))
+            }
+          })
+        },
       },
       '/api': {
         target: 'https://localhost:7106',
         changeOrigin: true,
         secure: false,
+        configure: (proxy) => {
+          proxy.on('error', (err, _req, res) => {
+            if (!res.headersSent) {
+              res.writeHead(502, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ message: 'Backend not ready' }))
+            }
+          })
+        },
       },
     },
   },

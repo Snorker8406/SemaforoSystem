@@ -12,6 +12,7 @@ import {
   Clock9Icon,
   CrownIcon,
   HashIcon,
+  PackageSearchIcon,
   SchoolIcon,
   SettingsIcon,
   SquareActivityIcon,
@@ -82,6 +83,14 @@ const navigation: NavGroup[] = [
         children: [
           { label: 'Administrar Escuelas', href: '/schools' },
           { label: 'Niveles', href: '/schools/levels' },
+        ],
+      },
+      {
+        label: 'Proceso Surtido',
+        href: '#',
+        icon: PackageSearchIcon,
+        children: [
+          { label: 'Productos Comunes', href: '/supply-process/common-products' },
         ],
       },
       { label: 'Content Performance', href: '#', icon: ChartSplineIcon },
