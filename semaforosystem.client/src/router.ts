@@ -4,6 +4,7 @@ import { Route as indexRoute } from './routes/index'
 import { Route as loginRoute } from './routes/login'
 import { Route as schoolsRoute } from './routes/schools'
 import { Route as schoolsLevelsRoute } from './routes/schools.levels'
+import { Route as productsRoute } from './routes/products'
 import { Route as commonProductsRoute } from './routes/supply-process.common-products'
 
 const routeTree = rootRoute.addChildren([
@@ -11,6 +12,7 @@ const routeTree = rootRoute.addChildren([
   loginRoute,
   schoolsRoute,
   schoolsLevelsRoute,
+  productsRoute,
   commonProductsRoute,
 ])
 
