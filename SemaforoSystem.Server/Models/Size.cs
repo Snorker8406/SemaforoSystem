@@ -21,11 +21,18 @@ public partial class Size
     [StringLength(250)]
     public string? Description { get; set; }
 
+    [Column("size_system_id")]
+    public int? SizeSystemId { get; set; }
+
     [InverseProperty("Size")]
     public virtual ICollection<ProductPrice> ProductPrices { get; set; } = new List<ProductPrice>();
 
     [InverseProperty("Size")]
     public virtual ICollection<SalesDetail> SalesDetails { get; set; } = new List<SalesDetail>();
+
+    [ForeignKey("SizeSystemId")]
+    [InverseProperty("Sizes")]
+    public virtual SizeSystem? SizeSystem { get; set; }
 
     [InverseProperty("Size")]
     public virtual ICollection<Stock> Stocks { get; set; } = new List<Stock>();

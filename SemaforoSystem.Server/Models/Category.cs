@@ -27,6 +27,16 @@ public partial class Category
     [Column("enabled")]
     public bool? Enabled { get; set; }
 
+    [Column("parent_category_id")]
+    public int? ParentCategoryId { get; set; }
+
+    [InverseProperty("ParentCategory")]
+    public virtual ICollection<Category> InverseParentCategory { get; set; } = new List<Category>();
+
+    [ForeignKey("ParentCategoryId")]
+    [InverseProperty("InverseParentCategory")]
+    public virtual Category? ParentCategory { get; set; }
+
     [ForeignKey("CategoryId")]
     [InverseProperty("Categories")]
     public virtual ICollection<Product> Products { get; set; } = new List<Product>();

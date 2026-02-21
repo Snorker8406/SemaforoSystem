@@ -54,6 +54,9 @@ public partial class Product
     [InverseProperty("Product")]
     public virtual ICollection<ProductComboDetail> ProductComboDetails { get; set; } = new List<ProductComboDetail>();
 
+    [InverseProperty("Product")]
+    public virtual ICollection<ProductCost> ProductCosts { get; set; } = new List<ProductCost>();
+
     [ForeignKey("ProductPictureId")]
     [InverseProperty("Products")]
     public virtual ProductPicture? ProductPicture { get; set; }
@@ -73,6 +76,10 @@ public partial class Product
     [ForeignKey("ProductId")]
     [InverseProperty("Products")]
     public virtual ICollection<Category> Categories { get; set; } = new List<Category>();
+
+    [ForeignKey("ProductId")]
+    [InverseProperty("Products")]
+    public virtual ICollection<ProductVariantSystem> ProductVariantSystems { get; set; } = new List<ProductVariantSystem>();
 
     [ForeignKey("ProductId")]
     [InverseProperty("Products")]

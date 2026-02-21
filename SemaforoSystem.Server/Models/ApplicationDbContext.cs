@@ -65,11 +65,17 @@ public partial class ApplicationDbContext : DbContext
 
     public virtual DbSet<ProductComboDetail> ProductComboDetails { get; set; }
 
+    public virtual DbSet<ProductCost> ProductCosts { get; set; }
+
     public virtual DbSet<ProductPicture> ProductPictures { get; set; }
 
     public virtual DbSet<ProductPrice> ProductPrices { get; set; }
 
     public virtual DbSet<ProductProvider> ProductProviders { get; set; }
+
+    public virtual DbSet<ProductVariant> ProductVariants { get; set; }
+
+    public virtual DbSet<ProductVariantSystem> ProductVariantSystems { get; set; }
 
     public virtual DbSet<Provider> Providers { get; set; }
 
@@ -90,6 +96,8 @@ public partial class ApplicationDbContext : DbContext
     public virtual DbSet<Site> Sites { get; set; }
 
     public virtual DbSet<Size> Sizes { get; set; }
+
+    public virtual DbSet<SizeSystem> SizeSystems { get; set; }
 
     public virtual DbSet<Stock> Stocks { get; set; }
 
@@ -196,6 +204,8 @@ public partial class ApplicationDbContext : DbContext
             entity.HasKey(e => e.CategoryId).HasName("categories_pkey");
 
             entity.Property(e => e.CreateDate).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.HasOne(d => d.ParentCategory).WithMany(p => p.InverseParentCategory).HasConstraintName("category_parent_category_id_fkey");
         });
 
         modelBuilder.Entity<Client>(entity =>
@@ -244,8 +254,6 @@ public partial class ApplicationDbContext : DbContext
 
             entity.Property(e => e.Active).HasDefaultValue(true);
             entity.Property(e => e.CreateDate).HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-            entity.HasOne(d => d.Appuser).WithMany(p => p.Employees).HasConstraintName("employees_AspNetUsers_fkey");
         });
 
         modelBuilder.Entity<EmployeeSalary>(entity =>
@@ -320,6 +328,25 @@ public partial class ApplicationDbContext : DbContext
                         j.IndexerProperty<int>("CategoryId").HasColumnName("category_id");
                     });
 
+            entity.HasMany(d => d.ProductVariantSystems).WithMany(p => p.Products)
+                .UsingEntity<Dictionary<string, object>>(
+                    "ProductsProductVariantSystem",
+                    r => r.HasOne<ProductVariantSystem>().WithMany()
+                        .HasForeignKey("ProductVariantSystemId")
+                        .OnDelete(DeleteBehavior.ClientSetNull)
+                        .HasConstraintName("products_product_variant_system_product_variant_system_id_fkey"),
+                    l => l.HasOne<Product>().WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.ClientSetNull)
+                        .HasConstraintName("products_product_variant_system_product_id_fkey"),
+                    j =>
+                    {
+                        j.HasKey("ProductId", "ProductVariantSystemId").HasName("products_product_variant_system_pkey");
+                        j.ToTable("products_product_variant_system");
+                        j.IndexerProperty<int>("ProductId").HasColumnName("product_id");
+                        j.IndexerProperty<int>("ProductVariantSystemId").HasColumnName("product_variant_system_id");
+                    });
+
             entity.HasMany(d => d.Schools).WithMany(p => p.Products)
                 .UsingEntity<Dictionary<string, object>>(
                     "ProductSchool",
@@ -358,6 +385,17 @@ public partial class ApplicationDbContext : DbContext
             entity.HasOne(d => d.Product).WithMany(p => p.ProductComboDetails).HasConstraintName("product_combo_details_product_id_fkey");
         });
 
+        modelBuilder.Entity<ProductCost>(entity =>
+        {
+            entity.HasKey(e => e.ProductCostId).HasName("product_costs_pkey");
+
+            entity.ToTable("product_costs", tb => tb.HasComment("costos de los productos"));
+
+            entity.HasOne(d => d.Product).WithMany(p => p.ProductCosts)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("product_costs_product_id_fkey");
+        });
+
         modelBuilder.Entity<ProductPicture>(entity =>
         {
             entity.HasKey(e => e.ProductPictureId).HasName("product_pictures_pkey");
@@ -391,6 +429,22 @@ public partial class ApplicationDbContext : DbContext
             entity.HasOne(d => d.Provider).WithMany()
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("product_providers_provider_id_fkey");
+        });
+
+        modelBuilder.Entity<ProductVariant>(entity =>
+        {
+            entity.HasKey(e => e.ProductVariantId).HasName("product_variants_pkey");
+
+            entity.Property(e => e.ProductVariantId).HasDefaultValueSql("nextval('product_variant_product_variant_id_seq'::regclass)");
+
+            entity.HasOne(d => d.ProductVariantSystem).WithMany(p => p.ProductVariants)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("product_variants_product_variant_system_id_fkey");
+        });
+
+        modelBuilder.Entity<ProductVariantSystem>(entity =>
+        {
+            entity.HasKey(e => e.ProductVariantId).HasName("product_variant_system_pkey");
         });
 
         modelBuilder.Entity<Provider>(entity =>
@@ -493,6 +547,13 @@ public partial class ApplicationDbContext : DbContext
         modelBuilder.Entity<Size>(entity =>
         {
             entity.HasKey(e => e.SizeId).HasName("sizes_pkey");
+
+            entity.HasOne(d => d.SizeSystem).WithMany(p => p.Sizes).HasConstraintName("size_system_size_system_id_fkey");
+        });
+
+        modelBuilder.Entity<SizeSystem>(entity =>
+        {
+            entity.HasKey(e => e.SizeSystemId).HasName("size_system_pkey");
         });
 
         modelBuilder.Entity<Stock>(entity =>

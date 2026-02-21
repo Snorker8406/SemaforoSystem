@@ -13,10 +13,6 @@ public partial class Employee
     [Column("employee_id")]
     public int EmployeeId { get; set; }
 
-    [Column("appuser_id")]
-    [StringLength(450)]
-    public string? AppuserId { get; set; }
-
     [Column("name")]
     [StringLength(100)]
     public string? Name { get; set; }
@@ -94,10 +90,6 @@ public partial class Employee
 
     [InverseProperty("Employee")]
     public virtual ICollection<Account> Accounts { get; set; } = new List<Account>();
-
-    [ForeignKey("AppuserId")]
-    [InverseProperty("Employees")]
-    public virtual AspNetUser? Appuser { get; set; }
 
     [InverseProperty("Employee")]
     public virtual ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
