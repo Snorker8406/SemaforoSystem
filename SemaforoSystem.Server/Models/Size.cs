@@ -13,9 +13,9 @@ public partial class Size
     [Column("size_id")]
     public int SizeId { get; set; }
 
-    [Column("name")]
+    [Column("size_value")]
     [StringLength(50)]
-    public string Name { get; set; } = null!;
+    public string SizeValue { get; set; } = null!;
 
     [Column("description")]
     [StringLength(250)]

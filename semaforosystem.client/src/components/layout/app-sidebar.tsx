@@ -92,6 +92,7 @@ const navigation: NavGroup[] = [
         icon: PackageIcon,
         children: [
           { label: 'Administrar Productos', href: '/products' },
+          { label: 'Administrar Tallas', href: '/products/sizes' },
         ],
       },
       {
