@@ -21,6 +21,12 @@ public partial class ProductCombo
     [StringLength(250)]
     public string? Description { get; set; }
 
+    [Column("create_date")]
+    public DateTime? CreateDate { get; set; }
+
     [InverseProperty("ProductCombo")]
     public virtual ICollection<ProductComboDetail> ProductComboDetails { get; set; } = new List<ProductComboDetail>();
+
+    [InverseProperty("ProductCombo")]
+    public virtual ICollection<ProductPrice> ProductPrices { get; set; } = new List<ProductPrice>();
 }

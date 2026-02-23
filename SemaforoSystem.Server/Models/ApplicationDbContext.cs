@@ -415,6 +415,8 @@ public partial class ApplicationDbContext : DbContext
 
             entity.Property(e => e.PriceId).ValueGeneratedNever();
 
+            entity.HasOne(d => d.ProductCombo).WithMany(p => p.ProductPrices).HasConstraintName("product_prices_product_combo_id_fkey");
+
             entity.HasOne(d => d.Product).WithMany(p => p.ProductPrices)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("product_prices_product_id_fkey");

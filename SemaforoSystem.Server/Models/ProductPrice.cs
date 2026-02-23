@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace SemaforoSystem.Server.Models;
 
 [Table("product_prices")]
+[Index("ProductComboId", Name = "fki_product_prices_product_combo_id_fkey")]
 [Index("VariantId", Name = "fki_product_prices_variant_id_fkey")]
 public partial class ProductPrice
 {
@@ -30,9 +31,16 @@ public partial class ProductPrice
     [Column("variant_id")]
     public int? VariantId { get; set; }
 
+    [Column("product_combo_id")]
+    public int? ProductComboId { get; set; }
+
     [ForeignKey("ProductId")]
     [InverseProperty("ProductPrices")]
     public virtual Product Product { get; set; } = null!;
+
+    [ForeignKey("ProductComboId")]
+    [InverseProperty("ProductPrices")]
+    public virtual ProductCombo? ProductCombo { get; set; }
 
     [ForeignKey("SizeId")]
     [InverseProperty("ProductPrices")]
