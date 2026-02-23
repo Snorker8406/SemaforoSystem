@@ -420,6 +420,8 @@ public partial class ApplicationDbContext : DbContext
                 .HasConstraintName("product_prices_product_id_fkey");
 
             entity.HasOne(d => d.Size).WithMany(p => p.ProductPrices).HasConstraintName("product_prices_size_id_fkey");
+
+            entity.HasOne(d => d.Variant).WithMany(p => p.ProductPrices).HasConstraintName("product_prices_variant_id_fkey");
         });
 
         modelBuilder.Entity<ProductProvider>(entity =>
