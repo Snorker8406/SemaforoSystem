@@ -27,6 +27,11 @@ public class CreateProductRequest
 
     public int? BrandId { get; set; }
 
+    public int? SizeSystemId { get; set; }
+
     /// <summary>List of category IDs to associate with the product.</summary>
     public List<int> CategoryIds { get; set; } = [];
+
+    /// <summary>List of variant system IDs to associate with the product (M2M).</summary>
+    public List<int> VariantSystemIds { get; set; } = [];
 }

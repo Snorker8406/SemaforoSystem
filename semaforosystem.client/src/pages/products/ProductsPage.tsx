@@ -229,6 +229,16 @@ function createColumns(ctx: ColumnContext): ColumnDef<ProductResponse>[] {
         ),
     },
     {
+      accessorKey: 'sizeSystemName',
+      header: () => <DataTableColumnHeader title='Sist. Tallas' />,
+      cell: ({ row }) =>
+        row.original.sizeSystemName ? (
+          <Badge variant='outline'>{row.original.sizeSystemName}</Badge>
+        ) : (
+          <span className='text-muted-foreground'>—</span>
+        ),
+    },
+    {
       accessorKey: 'serialCount',
       header: () => (
         <DataTableColumnHeader title='Series' {...headerProps('serialCount')} />

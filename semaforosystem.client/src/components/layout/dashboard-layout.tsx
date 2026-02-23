@@ -16,7 +16,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         <AppSidebar />
         <div className='flex flex-1 flex-col'>
           <AppHeader />
-          <main className='mx-auto size-full max-w-7xl flex-1 px-4 py-6 sm:px-6'>
+          <main className='mx-auto size-full flex-1 px-4 py-6 sm:px-6'>
             {children}
           </main>
           <AppFooter />

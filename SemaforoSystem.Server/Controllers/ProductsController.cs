@@ -28,6 +28,8 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
         CreateDate = product.CreateDate,
         BrandId = product.BrandId,
         BrandName = product.Brand?.Name,
+        SizeSystemId = product.SizeSystemId,
+        SizeSystemName = product.SizeSystem?.Name,
         Categories = product.Categories.Select(c => new CategoryInfo
         {
             CategoryId = c.CategoryId,
@@ -65,6 +67,7 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
     {
         var q = db.Products
             .Include(p => p.Brand)
+            .Include(p => p.SizeSystem)
             .Include(p => p.Categories)
             .Include(p => p.Schools)
             .Include(p => p.ProductPictures)
@@ -170,6 +173,7 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
     {
         var product = await db.Products
             .Include(p => p.Brand)
+            .Include(p => p.SizeSystem)
             .Include(p => p.Categories)
             .Include(p => p.Schools)
             .Include(p => p.ProductPictures)
@@ -222,6 +226,27 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
                 return UnprocessableEntity(new { message = $"Categories not found: {string.Join(", ", missing)}" });
         }
 
+        // Validate SizeSystem FK
+        if (request.SizeSystemId.HasValue)
+        {
+            var sizeSystemExists = await db.SizeSystems
+                .AnyAsync(ss => ss.SizeSystemId == request.SizeSystemId.Value, ct);
+            if (!sizeSystemExists)
+                return UnprocessableEntity(new { message = $"Size system with ID {request.SizeSystemId} does not exist." });
+        }
+
+        // Validate VariantSystem IDs
+        if (request.VariantSystemIds.Count > 0)
+        {
+            var existingVsIds = await db.ProductVariantSystems
+                .Where(vs => request.VariantSystemIds.Contains(vs.ProductVariantId))
+                .Select(vs => vs.ProductVariantId)
+                .ToListAsync(ct);
+            var missingVs = request.VariantSystemIds.Except(existingVsIds).ToList();
+            if (missingVs.Count > 0)
+                return UnprocessableEntity(new { message = $"Variant systems not found: {string.Join(", ", missingVs)}" });
+        }
+
         var product = new Product
         {
             Name = request.Name,
@@ -232,6 +257,7 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             SerialCount = request.SerialCount,
             Serialize = request.Serialize,
             BrandId = request.BrandId,
+            SizeSystemId = request.SizeSystemId,
             CreateDate = DateTime.UtcNow,
         };
 
@@ -244,11 +270,21 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             product.Categories = categories;
         }
 
+        // Associate variant systems (M2M)
+        if (request.VariantSystemIds.Count > 0)
+        {
+            var variantSystems = await db.ProductVariantSystems
+                .Where(vs => request.VariantSystemIds.Contains(vs.ProductVariantId))
+                .ToListAsync(ct);
+            product.ProductVariantSystems = variantSystems;
+        }
+
         db.Products.Add(product);
         await db.SaveChangesAsync(ct);
 
         // Reload navigations for response
         await db.Entry(product).Reference(p => p.Brand).LoadAsync(ct);
+        await db.Entry(product).Reference(p => p.SizeSystem).LoadAsync(ct);
         await db.Entry(product).Collection(p => p.Categories).LoadAsync(ct);
         await db.Entry(product).Collection(p => p.Schools).LoadAsync(ct);
         await db.Entry(product).Collection(p => p.ProductPictures).LoadAsync(ct);
@@ -276,6 +312,7 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
     {
         var product = await db.Products
             .Include(p => p.Brand)
+            .Include(p => p.SizeSystem)
             .Include(p => p.Categories)
             .Include(p => p.Schools)
             .Include(p => p.ProductPictures)
@@ -311,6 +348,27 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
                 return UnprocessableEntity(new { message = $"Categories not found: {string.Join(", ", missing)}" });
         }
 
+        // Validate SizeSystem FK
+        if (request.SizeSystemId.HasValue && request.SizeSystemId != product.SizeSystemId)
+        {
+            var sizeSystemExists = await db.SizeSystems
+                .AnyAsync(ss => ss.SizeSystemId == request.SizeSystemId.Value, ct);
+            if (!sizeSystemExists)
+                return UnprocessableEntity(new { message = $"Size system with ID {request.SizeSystemId} does not exist." });
+        }
+
+        // Validate VariantSystem IDs
+        if (request.VariantSystemIds.Count > 0)
+        {
+            var existingVsIds = await db.ProductVariantSystems
+                .Where(vs => request.VariantSystemIds.Contains(vs.ProductVariantId))
+                .Select(vs => vs.ProductVariantId)
+                .ToListAsync(ct);
+            var missingVs = request.VariantSystemIds.Except(existingVsIds).ToList();
+            if (missingVs.Count > 0)
+                return UnprocessableEntity(new { message = $"Variant systems not found: {string.Join(", ", missingVs)}" });
+        }
+
         // Apply scalar updates
         product.Name = request.Name;
         product.Barcode = request.Barcode;
@@ -320,6 +378,7 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
         product.SerialCount = request.SerialCount;
         product.Serialize = request.Serialize;
         product.BrandId = request.BrandId;
+        product.SizeSystemId = request.SizeSystemId;
 
         // Update categories (replace all)
         product.Categories.Clear();
@@ -332,7 +391,21 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
                 product.Categories.Add(cat);
         }
 
+        // Update variant systems (replace all — M2M)
+        product.ProductVariantSystems.Clear();
+        if (request.VariantSystemIds.Count > 0)
+        {
+            var variantSystems = await db.ProductVariantSystems
+                .Where(vs => request.VariantSystemIds.Contains(vs.ProductVariantId))
+                .ToListAsync(ct);
+            foreach (var vs in variantSystems)
+                product.ProductVariantSystems.Add(vs);
+        }
+
         await db.SaveChangesAsync(ct);
+
+        // Reload SizeSystem for response
+        await db.Entry(product).Reference(p => p.SizeSystem).LoadAsync(ct);
 
         return Ok(MapToResponse(product));
     }

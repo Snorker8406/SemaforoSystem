@@ -24,6 +24,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 
 import type { ProductResponse, CreateProductRequest } from '@/services/product-service'
 import { useBrands, useCategories, useCreateProduct, useUpdateProduct } from '@/hooks/use-products'
+import { useSizeSystemsLookup } from '@/hooks/use-sizes'
+import { useVariantSystemsLookup } from '@/hooks/use-variants'
 
 // ── Types ────────────────────────────────────────────────
 
@@ -42,7 +44,9 @@ interface FormData {
   serialCount: string
   serialize: boolean
   brandId: string
+  sizeSystemId: string
   categoryIds: number[]
+  variantSystemIds: number[]
 }
 
 const emptyForm: FormData = {
@@ -54,7 +58,9 @@ const emptyForm: FormData = {
   serialCount: '',
   serialize: false,
   brandId: '',
+  sizeSystemId: '',
   categoryIds: [],
+  variantSystemIds: [],
 }
 
 // ── Component ────────────────────────────────────────────
@@ -73,6 +79,8 @@ export default function ProductFormDialog({
   // Fetch lookups via hooks
   const { data: brands = [] } = useBrands()
   const { data: categories = [] } = useCategories()
+  const { data: sizeSystems = [] } = useSizeSystemsLookup()
+  const { data: variantSystems = [] } = useVariantSystemsLookup()
 
   // Populate form when dialog opens (adjust state during render — React 19 pattern)
   if (open && !prevOpen) {
@@ -88,7 +96,9 @@ export default function ProductFormDialog({
             serialCount: product.serialCount != null ? String(product.serialCount) : '',
             serialize: product.serialize ?? false,
             brandId: product.brandId != null ? String(product.brandId) : '',
+            sizeSystemId: product.sizeSystemId != null ? String(product.sizeSystemId) : '',
             categoryIds: product.categories.map((c) => c.categoryId),
+            variantSystemIds: product.variantSystems.map((vs) => vs.productVariantId),
           }
         : emptyForm,
     )
@@ -136,7 +146,9 @@ export default function ProductFormDialog({
       serialCount: form.serialCount ? Number(form.serialCount) : null,
       serialize: form.serialize,
       brandId: form.brandId ? Number(form.brandId) : null,
+      sizeSystemId: form.sizeSystemId ? Number(form.sizeSystemId) : null,
       categoryIds: form.categoryIds,
+      variantSystemIds: form.variantSystemIds,
     }
 
     if (isEditing) {
@@ -162,11 +174,20 @@ export default function ProductFormDialog({
     }))
   }
 
+  function toggleVariantSystem(vsId: number) {
+    setForm((prev) => ({
+      ...prev,
+      variantSystemIds: prev.variantSystemIds.includes(vsId)
+        ? prev.variantSystemIds.filter((id) => id !== vsId)
+        : [...prev.variantSystemIds, vsId],
+    }))
+  }
+
   // ── Render ────────────────────────────────────────
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='max-h-[90vh] overflow-y-auto sm:max-w-[550px]'>
+      <DialogContent className='max-h-[90vh] overflow-y-auto sm:max-w-[650px]'>
         <DialogHeader>
           <DialogTitle>
             {isEditing ? 'Editar Producto' : 'Nuevo Producto'}
@@ -218,26 +239,48 @@ export default function ProductFormDialog({
             </div>
           </div>
 
-          {/* Brand */}
-          <div className='space-y-2'>
-            <Label>Marca</Label>
-            <Select
-              value={form.brandId}
-              onValueChange={(v) => setField('brandId', v === 'none' ? '' : v)}
-              disabled={isPending}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder='Seleccionar marca' />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value='none'>Sin marca</SelectItem>
-                {brands.map((b) => (
-                  <SelectItem key={b.brandId} value={String(b.brandId)}>
-                    {b.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Brand + Size System row */}
+          <div className='grid grid-cols-2 gap-4'>
+            <div className='space-y-2'>
+              <Label>Marca</Label>
+              <Select
+                value={form.brandId}
+                onValueChange={(v) => setField('brandId', v === 'none' ? '' : v)}
+                disabled={isPending}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder='Seleccionar marca' />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='none'>Sin marca</SelectItem>
+                  {brands.map((b) => (
+                    <SelectItem key={b.brandId} value={String(b.brandId)}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className='space-y-2'>
+              <Label>Sistema de Tallas</Label>
+              <Select
+                value={form.sizeSystemId}
+                onValueChange={(v) => setField('sizeSystemId', v === 'none' ? '' : v)}
+                disabled={isPending}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder='Seleccionar sistema' />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='none'>Sin sistema de tallas</SelectItem>
+                  {sizeSystems.map((ss) => (
+                    <SelectItem key={ss.sizeSystemId} value={String(ss.sizeSystemId)}>
+                      {ss.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Serial count + Serialize row */}
@@ -294,46 +337,92 @@ export default function ProductFormDialog({
             />
           </div>
 
-          {/* Categories */}
-          <div className='space-y-2'>
-            <Label>Categorías</Label>
-            {form.categoryIds.length > 0 && (
-              <div className='flex flex-wrap gap-1 mb-2'>
-                {form.categoryIds.map((id) => {
-                  const cat = categories.find((c) => c.categoryId === id)
-                  return (
-                    <Badge
-                      key={id}
-                      variant='secondary'
-                      className='cursor-pointer'
-                      onClick={() => toggleCategory(id)}
-                    >
-                      {cat?.name ?? id} ×
-                    </Badge>
-                  )
-                })}
-              </div>
-            )}
-            <div className='max-h-[120px] overflow-y-auto rounded-md border p-2 space-y-1'>
-              {categories.map((cat) => (
-                <div key={cat.categoryId} className='flex items-center space-x-2'>
-                  <Checkbox
-                    id={`cat-${cat.categoryId}`}
-                    checked={form.categoryIds.includes(cat.categoryId)}
-                    onCheckedChange={() => toggleCategory(cat.categoryId)}
-                    disabled={isPending}
-                  />
-                  <Label
-                    htmlFor={`cat-${cat.categoryId}`}
-                    className='text-sm font-normal'
-                  >
-                    {cat.name}
-                  </Label>
+          {/* Categories + Variant Systems side by side */}
+          <div className='grid grid-cols-2 gap-4'>
+            {/* Categories */}
+            <div className='space-y-2'>
+              <Label>Categorías</Label>
+              {form.categoryIds.length > 0 && (
+                <div className='flex flex-wrap gap-1 mb-2'>
+                  {form.categoryIds.map((id) => {
+                    const cat = categories.find((c) => c.categoryId === id)
+                    return (
+                      <Badge
+                        key={id}
+                        variant='secondary'
+                        className='cursor-pointer'
+                        onClick={() => toggleCategory(id)}
+                      >
+                        {cat?.name ?? id} ×
+                      </Badge>
+                    )
+                  })}
                 </div>
-              ))}
-              {categories.length === 0 && (
-                <p className='text-muted-foreground text-xs'>No hay categorías disponibles.</p>
               )}
+              <div className='max-h-[120px] overflow-y-auto rounded-md border p-2 space-y-1'>
+                {categories.map((cat) => (
+                  <div key={cat.categoryId} className='flex items-center space-x-2'>
+                    <Checkbox
+                      id={`cat-${cat.categoryId}`}
+                      checked={form.categoryIds.includes(cat.categoryId)}
+                      onCheckedChange={() => toggleCategory(cat.categoryId)}
+                      disabled={isPending}
+                    />
+                    <Label
+                      htmlFor={`cat-${cat.categoryId}`}
+                      className='text-sm font-normal'
+                    >
+                      {cat.name}
+                    </Label>
+                  </div>
+                ))}
+                {categories.length === 0 && (
+                  <p className='text-muted-foreground text-xs'>No hay categorías disponibles.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Variant Systems */}
+            <div className='space-y-2'>
+              <Label>Sistemas de Variantes</Label>
+              {form.variantSystemIds.length > 0 && (
+                <div className='flex flex-wrap gap-1 mb-2'>
+                  {form.variantSystemIds.map((id) => {
+                    const vs = variantSystems.find((v) => v.productVariantId === id)
+                    return (
+                      <Badge
+                        key={id}
+                        variant='secondary'
+                        className='cursor-pointer'
+                        onClick={() => toggleVariantSystem(id)}
+                      >
+                        {vs?.name ?? id} ×
+                      </Badge>
+                    )
+                  })}
+                </div>
+              )}
+              <div className='max-h-[120px] overflow-y-auto rounded-md border p-2 space-y-1'>
+                {variantSystems.map((vs) => (
+                  <div key={vs.productVariantId} className='flex items-center space-x-2'>
+                    <Checkbox
+                      id={`vs-${vs.productVariantId}`}
+                      checked={form.variantSystemIds.includes(vs.productVariantId)}
+                      onCheckedChange={() => toggleVariantSystem(vs.productVariantId)}
+                      disabled={isPending}
+                    />
+                    <Label
+                      htmlFor={`vs-${vs.productVariantId}`}
+                      className='text-sm font-normal'
+                    >
+                      {vs.name}
+                    </Label>
+                  </div>
+                ))}
+                {variantSystems.length === 0 && (
+                  <p className='text-muted-foreground text-xs'>No hay sistemas de variantes disponibles.</p>
+                )}
+              </div>
             </div>
           </div>
 

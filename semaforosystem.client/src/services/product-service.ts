@@ -29,6 +29,8 @@ export interface ProductResponse {
   createDate: string | null
   brandId: number | null
   brandName: string | null
+  sizeSystemId: number | null
+  sizeSystemName: string | null
   categories: CategoryInfo[]
   schoolCount: number
   hasPicture: boolean
@@ -48,7 +50,9 @@ export interface CreateProductRequest {
   serialCount?: number | null
   serialize?: boolean | null
   brandId?: number | null
+  sizeSystemId?: number | null
   categoryIds: number[]
+  variantSystemIds: number[]
 }
 
 export type UpdateProductRequest = CreateProductRequest

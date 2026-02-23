@@ -19,6 +19,10 @@ public class ProductResponse
     public int? BrandId { get; set; }
     public string? BrandName { get; set; }
 
+    // Size system
+    public int? SizeSystemId { get; set; }
+    public string? SizeSystemName { get; set; }
+
     // Categories
     public List<CategoryInfo> Categories { get; set; } = [];
 
