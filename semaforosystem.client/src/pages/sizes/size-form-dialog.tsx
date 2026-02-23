@@ -30,11 +30,13 @@ interface SizeFormDialogProps {
 interface FormData {
   sizeValue: string
   description: string
+  sizeOrder: string
 }
 
 const emptyForm: FormData = {
   sizeValue: '',
   description: '',
+  sizeOrder: '',
 }
 
 // ── Component ────────────────────────────────────────────
@@ -60,6 +62,7 @@ export default function SizeFormDialog({
         ? {
             sizeValue: size.sizeValue ?? '',
             description: size.description ?? '',
+            sizeOrder: size.sizeOrder != null ? String(size.sizeOrder) : '',
           }
         : emptyForm,
     )
@@ -103,6 +106,7 @@ export default function SizeFormDialog({
     const payload: CreateSizeRequest = {
       sizeValue: form.sizeValue.trim(),
       description: form.description.trim() || null,
+      sizeOrder: form.sizeOrder ? Number(form.sizeOrder) : null,
     }
 
     if (isEditing) {
@@ -166,6 +170,19 @@ export default function SizeFormDialog({
             {errors.description && (
               <p className='text-destructive text-xs'>{errors.description}</p>
             )}
+          </div>
+
+          {/* Size Order */}
+          <div className='space-y-2'>
+            <Label htmlFor='size-order'>Orden</Label>
+            <Input
+              id='size-order'
+              type='number'
+              value={form.sizeOrder}
+              onChange={(e) => setField('sizeOrder', e.target.value)}
+              placeholder='Ej: 1, 2, 3...'
+              disabled={isPending}
+            />
           </div>
 
           <DialogFooter>

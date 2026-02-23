@@ -6,6 +6,7 @@ export interface SizeResponse {
   sizeId: number
   sizeValue: string
   description: string | null
+  sizeOrder: number | null
   sizeSystemId: number | null
   sizeSystemName: string | null
 }
@@ -14,7 +15,6 @@ export interface SizeSystemResponse {
   sizeSystemId: number
   name: string
   description: string | null
-  sortOrder: number | null
   sizeCount: number
   sizes: SizeResponse[]
 }
@@ -27,7 +27,6 @@ export interface SizeSystemSummary {
 export interface CreateSizeSystemRequest {
   name: string
   description?: string | null
-  sortOrder?: number | null
 }
 
 export type UpdateSizeSystemRequest = CreateSizeSystemRequest
@@ -35,6 +34,7 @@ export type UpdateSizeSystemRequest = CreateSizeSystemRequest
 export interface CreateSizeRequest {
   sizeValue: string
   description?: string | null
+  sizeOrder?: number | null
 }
 
 export type UpdateSizeRequest = CreateSizeRequest

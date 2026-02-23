@@ -7,7 +7,6 @@ public class SizeSystemResponse
     public int SizeSystemId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
-    public int? SortOrder { get; set; }
     public int SizeCount { get; set; }
     public List<SizeResponse> Sizes { get; set; } = [];
 }
@@ -26,8 +25,6 @@ public class CreateSizeSystemRequest
 
     [System.ComponentModel.DataAnnotations.StringLength(200)]
     public string? Description { get; set; }
-
-    public int? SortOrder { get; set; }
 }
 
 public class UpdateSizeSystemRequest : CreateSizeSystemRequest;
@@ -39,6 +36,7 @@ public class SizeResponse
     public int SizeId { get; set; }
     public string SizeValue { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public int? SizeOrder { get; set; }
     public int? SizeSystemId { get; set; }
     public string? SizeSystemName { get; set; }
 }
@@ -51,6 +49,8 @@ public class CreateSizeRequest
 
     [System.ComponentModel.DataAnnotations.StringLength(250)]
     public string? Description { get; set; }
+
+    public int? SizeOrder { get; set; }
 }
 
 public class UpdateSizeRequest : CreateSizeRequest;

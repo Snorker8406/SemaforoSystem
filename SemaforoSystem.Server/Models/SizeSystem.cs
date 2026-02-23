@@ -22,9 +22,6 @@ public partial class SizeSystem
     [StringLength(200)]
     public string? Description { get; set; }
 
-    [Column("sort_order")]
-    public int? SortOrder { get; set; }
-
     [InverseProperty("SizeSystem")]
     public virtual ICollection<Size> Sizes { get; set; } = new List<Size>();
 }

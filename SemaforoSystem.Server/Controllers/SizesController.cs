@@ -22,15 +22,16 @@ public class SizesController(ApplicationDbContext db) : ControllerBase
         SizeSystemId = ss.SizeSystemId,
         Name = ss.Name,
         Description = ss.Description,
-        SortOrder = ss.SortOrder,
         SizeCount = ss.Sizes.Count,
         Sizes = ss.Sizes
-            .OrderBy(s => s.SizeId)
+            .OrderBy(s => s.SizeOrder ?? int.MaxValue)
+            .ThenBy(s => s.SizeId)
             .Select(s => new SizeResponse
             {
                 SizeId = s.SizeId,
                 SizeValue = s.SizeValue,
                 Description = s.Description,
+                SizeOrder = s.SizeOrder,
                 SizeSystemId = ss.SizeSystemId,
                 SizeSystemName = ss.Name,
             }).ToList(),
@@ -41,6 +42,7 @@ public class SizesController(ApplicationDbContext db) : ControllerBase
         SizeId = s.SizeId,
         SizeValue = s.SizeValue,
         Description = s.Description,
+        SizeOrder = s.SizeOrder,
         SizeSystemId = s.SizeSystemId,
         SizeSystemName = s.SizeSystem?.Name,
     };
@@ -76,11 +78,10 @@ public class SizesController(ApplicationDbContext db) : ControllerBase
         q = query.SortBy?.ToLower() switch
         {
             "name" => query.SortDescending ? q.OrderByDescending(ss => ss.Name) : q.OrderBy(ss => ss.Name),
-            "sortorder" => query.SortDescending ? q.OrderByDescending(ss => ss.SortOrder) : q.OrderBy(ss => ss.SortOrder),
             "sizecount" => query.SortDescending
                 ? q.OrderByDescending(ss => ss.Sizes.Count)
                 : q.OrderBy(ss => ss.Sizes.Count),
-            _ => q.OrderBy(ss => ss.SortOrder ?? int.MaxValue).ThenBy(ss => ss.Name),
+            _ => q.OrderBy(ss => ss.Name),
         };
 
         var totalCount = await q.CountAsync(ct);
@@ -109,8 +110,7 @@ public class SizesController(ApplicationDbContext db) : ControllerBase
     {
         var items = await db.SizeSystems
             .AsNoTracking()
-            .OrderBy(ss => ss.SortOrder ?? int.MaxValue)
-            .ThenBy(ss => ss.Name)
+            .OrderBy(ss => ss.Name)
             .Select(ss => new SizeSystemSummary
             {
                 SizeSystemId = ss.SizeSystemId,
@@ -161,7 +161,6 @@ public class SizesController(ApplicationDbContext db) : ControllerBase
         {
             Name = request.Name,
             Description = request.Description,
-            SortOrder = request.SortOrder,
         };
 
         db.SizeSystems.Add(entity);
@@ -200,7 +199,6 @@ public class SizesController(ApplicationDbContext db) : ControllerBase
 
         entity.Name = request.Name;
         entity.Description = request.Description;
-        entity.SortOrder = request.SortOrder;
 
         await db.SaveChangesAsync(ct);
 
@@ -270,10 +268,11 @@ public class SizesController(ApplicationDbContext db) : ControllerBase
         q = query.SortBy?.ToLower() switch
         {
             "sizevalue" => query.SortDescending ? q.OrderByDescending(s => s.SizeValue) : q.OrderBy(s => s.SizeValue),
+            "sizeorder" => query.SortDescending ? q.OrderByDescending(s => s.SizeOrder) : q.OrderBy(s => s.SizeOrder),
             "sizesystem" => query.SortDescending
                 ? q.OrderByDescending(s => s.SizeSystem != null ? s.SizeSystem.Name : null)
                 : q.OrderBy(s => s.SizeSystem != null ? s.SizeSystem.Name : null),
-            _ => q.OrderBy(s => s.SizeId),
+            _ => q.OrderBy(s => s.SizeOrder ?? int.MaxValue).ThenBy(s => s.SizeId),
         };
 
         var totalCount = await q.CountAsync(ct);
@@ -309,7 +308,8 @@ public class SizesController(ApplicationDbContext db) : ControllerBase
             .Include(s => s.SizeSystem)
             .AsNoTracking()
             .Where(s => s.SizeSystemId == systemId)
-            .OrderBy(s => s.SizeId)
+            .OrderBy(s => s.SizeOrder ?? int.MaxValue)
+            .ThenBy(s => s.SizeId)
             .Select(s => MapSizeToResponse(s))
             .ToListAsync(ct);
 
@@ -354,6 +354,7 @@ public class SizesController(ApplicationDbContext db) : ControllerBase
         {
             SizeValue = request.SizeValue,
             Description = request.Description,
+            SizeOrder = request.SizeOrder,
             SizeSystemId = systemId,
         };
 
@@ -385,6 +386,7 @@ public class SizesController(ApplicationDbContext db) : ControllerBase
 
         entity.SizeValue = request.SizeValue;
         entity.Description = request.Description;
+        entity.SizeOrder = request.SizeOrder;
 
         await db.SaveChangesAsync(ct);
 

@@ -12,9 +12,11 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   EditIcon,
+  LayersIcon,
+  PackageIcon,
   PlusIcon,
-  RulerIcon,
   SearchIcon,
+  SwatchBookIcon,
   Trash2Icon,
   XIcon,
 } from 'lucide-react'
@@ -47,28 +49,28 @@ import {
 } from '@/components/ui/tooltip'
 
 import type {
-  SizeSystemResponse,
-  SizeResponse,
-  SizeSystemQueryParams,
-} from '@/services/size-service'
+  VariantSystemResponse,
+  VariantResponse,
+  VariantSystemQueryParams,
+} from '@/services/variant-service'
 
-import { useSizeSystems } from '@/hooks/use-sizes'
+import { useVariantSystems } from '@/hooks/use-variants'
 
-import SizeSystemFormDialog from './size-system-form-dialog'
-import SizeSystemDeleteDialog from './size-system-delete-dialog'
-import SizeFormDialog from './size-form-dialog'
-import SizeDeleteDialog from './size-delete-dialog'
+import VariantSystemFormDialog from './variant-system-form-dialog'
+import VariantSystemDeleteDialog from './variant-system-delete-dialog'
+import VariantFormDialog from './variant-form-dialog'
+import VariantDeleteDialog from './variant-delete-dialog'
 
 // ── Columns ──────────────────────────────────────────────
 
 interface ColumnContext {
-  onEditSystem: (ss: SizeSystemResponse) => void
-  onDeleteSystem: (ss: SizeSystemResponse) => void
-  onAddSize: (ss: SizeSystemResponse) => void
+  onEditSystem: (vs: VariantSystemResponse) => void
+  onDeleteSystem: (vs: VariantSystemResponse) => void
+  onAddVariant: (vs: VariantSystemResponse) => void
 }
 
-function createColumns(ctx: ColumnContext): ColumnDef<SizeSystemResponse>[] {
-  const { onEditSystem, onDeleteSystem, onAddSize } = ctx
+function createColumns(ctx: ColumnContext): ColumnDef<VariantSystemResponse>[] {
+  const { onEditSystem, onDeleteSystem, onAddVariant } = ctx
 
   return [
     {
@@ -96,7 +98,7 @@ function createColumns(ctx: ColumnContext): ColumnDef<SizeSystemResponse>[] {
       cell: ({ row }) => (
         <div className='flex items-center gap-2'>
           <div className='bg-primary/10 flex size-9 items-center justify-center rounded-lg'>
-            <RulerIcon className='text-primary size-4' />
+            <SwatchBookIcon className='text-primary size-4' />
           </div>
           <button
             type='button'
@@ -118,30 +120,40 @@ function createColumns(ctx: ColumnContext): ColumnDef<SizeSystemResponse>[] {
       ),
     },
     {
-      accessorKey: 'sizeCount',
-      header: 'Tallas',
+      accessorKey: 'variantCount',
+      header: 'Variantes',
       cell: ({ row }) => (
         <Badge variant='secondary' className='gap-1'>
-          <RulerIcon className='size-3' />
-          {row.original.sizeCount}
+          <LayersIcon className='size-3' />
+          {row.original.variantCount}
         </Badge>
       ),
     },
     {
-      id: 'sizes-preview',
+      accessorKey: 'productCount',
+      header: 'Productos',
+      cell: ({ row }) => (
+        <Badge variant='secondary' className='gap-1'>
+          <PackageIcon className='size-3' />
+          {row.original.productCount}
+        </Badge>
+      ),
+    },
+    {
+      id: 'variants-preview',
       header: 'Vista previa',
       cell: ({ row }) => {
-        const sizes = row.original.sizes
-        if (sizes.length === 0) {
-          return <span className='text-muted-foreground text-xs'>Sin tallas</span>
+        const variants = row.original.variants
+        if (variants.length === 0) {
+          return <span className='text-muted-foreground text-xs'>Sin variantes</span>
         }
-        const shown = sizes.slice(0, 8)
-        const remaining = sizes.length - shown.length
+        const shown = variants.slice(0, 8)
+        const remaining = variants.length - shown.length
         return (
           <div className='flex flex-wrap gap-1'>
-            {shown.map((s) => (
-              <Badge key={s.sizeId} variant='outline' className='text-xs'>
-                {s.sizeValue}
+            {shown.map((v) => (
+              <Badge key={v.productVariantId} variant='outline' className='text-xs'>
+                {v.variantValue}
               </Badge>
             ))}
             {remaining > 0 && (
@@ -164,12 +176,12 @@ function createColumns(ctx: ColumnContext): ColumnDef<SizeSystemResponse>[] {
                 variant='ghost'
                 size='icon'
                 className='size-8'
-                onClick={() => onAddSize(row.original)}
+                onClick={() => onAddVariant(row.original)}
               >
                 <PlusIcon className='size-4' />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Agregar talla</TooltipContent>
+            <TooltipContent>Agregar variante</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -203,22 +215,22 @@ function createColumns(ctx: ColumnContext): ColumnDef<SizeSystemResponse>[] {
   ]
 }
 
-// ── Expanded Row: Sizes sub-table ────────────────────────
+// ── Expanded Row: Variants sub-table ─────────────────────
 
-interface SizeSubTableProps {
-  sizeSystem: SizeSystemResponse
-  onEditSize: (size: SizeResponse) => void
-  onDeleteSize: (size: SizeResponse) => void
+interface VariantSubTableProps {
+  variantSystem: VariantSystemResponse
+  onEditVariant: (variant: VariantResponse) => void
+  onDeleteVariant: (variant: VariantResponse) => void
 }
 
-function SizeSubTable({ sizeSystem, onEditSize, onDeleteSize }: SizeSubTableProps) {
-  const sizes = sizeSystem.sizes
+function VariantSubTable({ variantSystem, onEditVariant, onDeleteVariant }: VariantSubTableProps) {
+  const variants = variantSystem.variants
 
-  if (sizes.length === 0) {
+  if (variants.length === 0) {
     return (
       <div className='flex items-center justify-center py-6 text-muted-foreground text-sm'>
-        <RulerIcon className='mr-2 size-4' />
-        Este sistema no tiene tallas definidas.
+        <SwatchBookIcon className='mr-2 size-4' />
+        Este sistema no tiene variantes definidas.
       </div>
     )
   }
@@ -228,28 +240,22 @@ function SizeSubTable({ sizeSystem, onEditSize, onDeleteSize }: SizeSubTableProp
       <Table>
         <TableHeader>
           <TableRow className='bg-muted/30 h-8'>
-            <TableHead className='w-40 py-1 text-xs'>Talla</TableHead>
+            <TableHead className='w-40 py-1 text-xs'>Valor</TableHead>
             <TableHead className='py-1 text-xs'>Descripción</TableHead>
-            <TableHead className='w-20 py-1 text-xs'>Orden</TableHead>
             <TableHead className='w-25 py-1 text-xs text-right'>Acciones</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sizes.map((size) => (
-            <TableRow key={size.sizeId} className='h-8'>
+          {variants.map((variant) => (
+            <TableRow key={variant.productVariantId} className='h-8'>
               <TableCell className='py-1'>
                 <Badge variant='outline' className='font-mono text-xs py-0'>
-                  {size.sizeValue}
+                  {variant.variantValue}
                 </Badge>
               </TableCell>
               <TableCell className='py-1'>
                 <span className='text-muted-foreground text-xs'>
-                  {size.description || '—'}
-                </span>
-              </TableCell>
-              <TableCell className='py-1'>
-                <span className='text-muted-foreground text-xs'>
-                  {size.sizeOrder ?? '—'}
+                  {variant.description || '—'}
                 </span>
               </TableCell>
               <TableCell className='py-1'>
@@ -260,12 +266,12 @@ function SizeSubTable({ sizeSystem, onEditSize, onDeleteSize }: SizeSubTableProp
                         variant='ghost'
                         size='icon'
                         className='size-7'
-                        onClick={() => onEditSize(size)}
+                        onClick={() => onEditVariant(variant)}
                       >
                         <EditIcon className='size-3.5' />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Editar talla</TooltipContent>
+                    <TooltipContent>Editar variante</TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -273,12 +279,12 @@ function SizeSubTable({ sizeSystem, onEditSize, onDeleteSize }: SizeSubTableProp
                         variant='ghost'
                         size='icon'
                         className='text-destructive hover:text-destructive size-7'
-                        onClick={() => onDeleteSize(size)}
+                        onClick={() => onDeleteVariant(variant)}
                       >
                         <Trash2Icon className='size-3.5' />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Eliminar talla</TooltipContent>
+                    <TooltipContent>Eliminar variante</TooltipContent>
                   </Tooltip>
                 </div>
               </TableCell>
@@ -292,9 +298,9 @@ function SizeSubTable({ sizeSystem, onEditSize, onDeleteSize }: SizeSubTableProp
 
 // ── Page Component ───────────────────────────────────────
 
-export default function SizeSystemsPage() {
+export default function VariantSystemsPage() {
   // ── Query state ────────────────────────────────────
-  const [queryParams, setQueryParams] = useState<SizeSystemQueryParams>({
+  const [queryParams, setQueryParams] = useState<VariantSystemQueryParams>({
     page: 1,
     pageSize: 10,
     sortBy: 'name',
@@ -302,20 +308,20 @@ export default function SizeSystemsPage() {
   })
   const [searchInput, setSearchInput] = useState('')
 
-  // ── Dialog state — Size Systems ────────────────────
+  // ── Dialog state — Variant Systems ─────────────────
   const [systemFormOpen, setSystemFormOpen] = useState(false)
   const [systemDeleteOpen, setSystemDeleteOpen] = useState(false)
-  const [selectedSystem, setSelectedSystem] = useState<SizeSystemResponse | null>(null)
+  const [selectedSystem, setSelectedSystem] = useState<VariantSystemResponse | null>(null)
 
-  // ── Dialog state — Sizes ───────────────────────────
-  const [sizeFormOpen, setSizeFormOpen] = useState(false)
-  const [sizeDeleteOpen, setSizeDeleteOpen] = useState(false)
-  const [selectedSize, setSelectedSize] = useState<SizeResponse | null>(null)
-  const [activeSizeSystemId, setActiveSizeSystemId] = useState<number | null>(null)
-  const [activeSizeSystemName, setActiveSizeSystemName] = useState<string>('')
+  // ── Dialog state — Variants ────────────────────────
+  const [variantFormOpen, setVariantFormOpen] = useState(false)
+  const [variantDeleteOpen, setVariantDeleteOpen] = useState(false)
+  const [selectedVariant, setSelectedVariant] = useState<VariantResponse | null>(null)
+  const [activeVariantSystemId, setActiveVariantSystemId] = useState<number | null>(null)
+  const [activeVariantSystemName, setActiveVariantSystemName] = useState<string>('')
 
   // ── Data fetching ──────────────────────────────────
-  const { data, isLoading, isFetching } = useSizeSystems(queryParams)
+  const { data, isLoading, isFetching } = useVariantSystems(queryParams)
 
   const systems = data?.items ?? []
   const totalCount = data?.totalCount ?? 0
@@ -349,42 +355,42 @@ export default function SizeSystemsPage() {
     setQueryParams((prev) => ({ ...prev, pageSize: Number(value), page: 1 }))
   }, [])
 
-  // ── Handlers — Size System ────────────────────────
+  // ── Handlers — Variant System ─────────────────────
 
   const handleCreateSystem = useCallback(() => {
     setSelectedSystem(null)
     setSystemFormOpen(true)
   }, [])
 
-  const handleEditSystem = useCallback((ss: SizeSystemResponse) => {
-    setSelectedSystem(ss)
+  const handleEditSystem = useCallback((vs: VariantSystemResponse) => {
+    setSelectedSystem(vs)
     setSystemFormOpen(true)
   }, [])
 
-  const handleDeleteSystem = useCallback((ss: SizeSystemResponse) => {
-    setSelectedSystem(ss)
+  const handleDeleteSystem = useCallback((vs: VariantSystemResponse) => {
+    setSelectedSystem(vs)
     setSystemDeleteOpen(true)
   }, [])
 
-  // ── Handlers — Sizes ──────────────────────────────
+  // ── Handlers — Variants ───────────────────────────
 
-  const handleAddSize = useCallback((ss: SizeSystemResponse) => {
-    setSelectedSize(null)
-    setActiveSizeSystemId(ss.sizeSystemId)
-    setActiveSizeSystemName(ss.name)
-    setSizeFormOpen(true)
+  const handleAddVariant = useCallback((vs: VariantSystemResponse) => {
+    setSelectedVariant(null)
+    setActiveVariantSystemId(vs.productVariantId)
+    setActiveVariantSystemName(vs.name)
+    setVariantFormOpen(true)
   }, [])
 
-  const handleEditSize = useCallback((size: SizeResponse) => {
-    setSelectedSize(size)
-    setActiveSizeSystemId(size.sizeSystemId)
-    setActiveSizeSystemName(size.sizeSystemName ?? '')
-    setSizeFormOpen(true)
+  const handleEditVariant = useCallback((variant: VariantResponse) => {
+    setSelectedVariant(variant)
+    setActiveVariantSystemId(variant.productVariantSystemId)
+    setActiveVariantSystemName(variant.productVariantSystemName ?? '')
+    setVariantFormOpen(true)
   }, [])
 
-  const handleDeleteSize = useCallback((size: SizeResponse) => {
-    setSelectedSize(size)
-    setSizeDeleteOpen(true)
+  const handleDeleteVariant = useCallback((variant: VariantResponse) => {
+    setSelectedVariant(variant)
+    setVariantDeleteOpen(true)
   }, [])
 
   // ── Table ──────────────────────────────────────────
@@ -392,7 +398,7 @@ export default function SizeSystemsPage() {
   const columns = createColumns({
     onEditSystem: handleEditSystem,
     onDeleteSystem: handleDeleteSystem,
-    onAddSize: handleAddSize,
+    onAddVariant: handleAddVariant,
   })
 
   const table = useReactTable({
@@ -407,14 +413,14 @@ export default function SizeSystemsPage() {
 
   // ── Render expanded row ────────────────────────────
 
-  function renderExpandedRow(row: Row<SizeSystemResponse>) {
+  function renderExpandedRow(row: Row<VariantSystemResponse>) {
     return (
       <TableRow key={`${row.id}-expanded`}>
         <TableCell colSpan={columns.length} className='bg-muted/20 p-4'>
-          <SizeSubTable
-            sizeSystem={row.original}
-            onEditSize={handleEditSize}
-            onDeleteSize={handleDeleteSize}
+          <VariantSubTable
+            variantSystem={row.original}
+            onEditVariant={handleEditVariant}
+            onDeleteVariant={handleDeleteVariant}
           />
         </TableCell>
       </TableRow>
@@ -430,10 +436,10 @@ export default function SizeSystemsPage() {
         <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
           <div>
             <h1 className='text-2xl font-bold tracking-tight'>
-              Administrar Tallas
+              Administrar Variantes
             </h1>
             <p className='text-muted-foreground text-sm'>
-              Gestiona los sistemas de tallas y sus tallas asociadas.
+              Gestiona los sistemas de variantes y sus variantes asociadas.
             </p>
           </div>
           <Button onClick={handleCreateSystem} className='gap-2'>
@@ -483,8 +489,8 @@ export default function SizeSystemsPage() {
                   <>
                     {totalCount}{' '}
                     {totalCount === 1
-                      ? 'sistema de tallas encontrado'
-                      : 'sistemas de tallas encontrados'}
+                      ? 'sistema de variantes encontrado'
+                      : 'sistemas de variantes encontrados'}
                   </>
                 )}
               </CardTitle>
@@ -548,9 +554,9 @@ export default function SizeSystemsPage() {
                         className='h-32 text-center'
                       >
                         <div className='flex flex-col items-center gap-2'>
-                          <RulerIcon className='text-muted-foreground size-8' />
+                          <SwatchBookIcon className='text-muted-foreground size-8' />
                           <p className='text-muted-foreground'>
-                            No se encontraron sistemas de tallas.
+                            No se encontraron sistemas de variantes.
                           </p>
                           <Button
                             variant='link'
@@ -620,30 +626,30 @@ export default function SizeSystemsPage() {
         </Card>
       </div>
 
-      {/* Size System Dialogs */}
-      <SizeSystemFormDialog
+      {/* Variant System Dialogs */}
+      <VariantSystemFormDialog
         open={systemFormOpen}
         onOpenChange={setSystemFormOpen}
-        sizeSystem={selectedSystem}
+        variantSystem={selectedSystem}
       />
-      <SizeSystemDeleteDialog
+      <VariantSystemDeleteDialog
         open={systemDeleteOpen}
         onOpenChange={setSystemDeleteOpen}
-        sizeSystem={selectedSystem}
+        variantSystem={selectedSystem}
       />
 
-      {/* Size Dialogs */}
-      <SizeFormDialog
-        open={sizeFormOpen}
-        onOpenChange={setSizeFormOpen}
-        size={selectedSize}
-        sizeSystemId={activeSizeSystemId}
-        sizeSystemName={activeSizeSystemName}
+      {/* Variant Dialogs */}
+      <VariantFormDialog
+        open={variantFormOpen}
+        onOpenChange={setVariantFormOpen}
+        variant={selectedVariant}
+        variantSystemId={activeVariantSystemId}
+        variantSystemName={activeVariantSystemName}
       />
-      <SizeDeleteDialog
-        open={sizeDeleteOpen}
-        onOpenChange={setSizeDeleteOpen}
-        size={selectedSize}
+      <VariantDeleteDialog
+        open={variantDeleteOpen}
+        onOpenChange={setVariantDeleteOpen}
+        variant={selectedVariant}
       />
     </DashboardLayout>
   )

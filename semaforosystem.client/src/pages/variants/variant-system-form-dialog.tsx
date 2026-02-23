@@ -13,15 +13,15 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 
-import type { SizeSystemResponse, CreateSizeSystemRequest } from '@/services/size-service'
-import { useCreateSizeSystem, useUpdateSizeSystem } from '@/hooks/use-sizes'
+import type { VariantSystemResponse, CreateVariantSystemRequest } from '@/services/variant-service'
+import { useCreateVariantSystem, useUpdateVariantSystem } from '@/hooks/use-variants'
 
 // ── Types ────────────────────────────────────────────────
 
-interface SizeSystemFormDialogProps {
+interface VariantSystemFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  sizeSystem?: SizeSystemResponse | null
+  variantSystem?: VariantSystemResponse | null
 }
 
 interface FormData {
@@ -36,12 +36,12 @@ const emptyForm: FormData = {
 
 // ── Component ────────────────────────────────────────────
 
-export default function SizeSystemFormDialog({
+export default function VariantSystemFormDialog({
   open,
   onOpenChange,
-  sizeSystem,
-}: SizeSystemFormDialogProps) {
-  const isEditing = !!sizeSystem
+  variantSystem,
+}: VariantSystemFormDialogProps) {
+  const isEditing = !!variantSystem
 
   const [form, setForm] = useState<FormData>(emptyForm)
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({})
@@ -51,10 +51,10 @@ export default function SizeSystemFormDialog({
   if (open && !prevOpen) {
     setPrevOpen(true)
     setForm(
-      sizeSystem
+      variantSystem
         ? {
-            name: sizeSystem.name ?? '',
-            description: sizeSystem.description ?? '',
+            name: variantSystem.name ?? '',
+            description: variantSystem.description ?? '',
           }
         : emptyForm,
     )
@@ -66,11 +66,11 @@ export default function SizeSystemFormDialog({
 
   // ── Mutations ─────────────────────────────────────
 
-  const createMutation = useCreateSizeSystem({
+  const createMutation = useCreateVariantSystem({
     onSuccess: () => onOpenChange(false),
   })
 
-  const updateMutation = useUpdateSizeSystem({
+  const updateMutation = useUpdateVariantSystem({
     onSuccess: () => onOpenChange(false),
   })
 
@@ -83,7 +83,7 @@ export default function SizeSystemFormDialog({
 
     if (!form.name.trim()) newErrors.name = 'El nombre es requerido'
     if (form.name.trim().length > 100) newErrors.name = 'Máximo 100 caracteres'
-    if (form.description.length > 200) newErrors.description = 'Máximo 200 caracteres'
+    if (form.description.length > 250) newErrors.description = 'Máximo 250 caracteres'
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -95,13 +95,13 @@ export default function SizeSystemFormDialog({
     e.preventDefault()
     if (!validate()) return
 
-    const payload: CreateSizeSystemRequest = {
+    const payload: CreateVariantSystemRequest = {
       name: form.name.trim(),
       description: form.description.trim() || null,
     }
 
     if (isEditing) {
-      updateMutation.mutate({ id: sizeSystem!.sizeSystemId, data: payload })
+      updateMutation.mutate({ id: variantSystem!.productVariantId, data: payload })
     } else {
       createMutation.mutate(payload)
     }
@@ -121,24 +121,24 @@ export default function SizeSystemFormDialog({
       <DialogContent className='sm:max-w-[450px]'>
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? 'Editar Sistema de Tallas' : 'Nuevo Sistema de Tallas'}
+            {isEditing ? 'Editar Sistema de Variantes' : 'Nuevo Sistema de Variantes'}
           </DialogTitle>
           <DialogDescription>
             {isEditing
-              ? 'Modifica los campos del sistema de tallas.'
-              : 'Completa los datos para crear un nuevo sistema de tallas.'}
+              ? 'Modifica los campos del sistema de variantes.'
+              : 'Completa los datos para crear un nuevo sistema de variantes.'}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className='space-y-4'>
           {/* Name */}
           <div className='space-y-2'>
-            <Label htmlFor='ss-name'>Nombre *</Label>
+            <Label htmlFor='vs-name'>Nombre *</Label>
             <Input
-              id='ss-name'
+              id='vs-name'
               value={form.name}
               onChange={(e) => setField('name', e.target.value)}
-              placeholder='Ej: Tallas numéricas, Tallas letra'
+              placeholder='Ej: Colores, Estilos, Materiales'
               disabled={isPending}
             />
             {errors.name && (
@@ -148,9 +148,9 @@ export default function SizeSystemFormDialog({
 
           {/* Description */}
           <div className='space-y-2'>
-            <Label htmlFor='ss-description'>Descripción</Label>
+            <Label htmlFor='vs-description'>Descripción</Label>
             <Textarea
-              id='ss-description'
+              id='vs-description'
               value={form.description}
               onChange={(e) => setField('description', e.target.value)}
               placeholder='Descripción opcional del sistema'

@@ -13,35 +13,40 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 
-import type { SizeSystemResponse, CreateSizeSystemRequest } from '@/services/size-service'
-import { useCreateSizeSystem, useUpdateSizeSystem } from '@/hooks/use-sizes'
+import type { VariantResponse, CreateVariantRequest } from '@/services/variant-service'
+import { useCreateVariant, useUpdateVariant } from '@/hooks/use-variants'
 
 // ── Types ────────────────────────────────────────────────
 
-interface SizeSystemFormDialogProps {
+interface VariantFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  sizeSystem?: SizeSystemResponse | null
+  variant?: VariantResponse | null
+  /** Required when creating a new variant */
+  variantSystemId: number | null
+  variantSystemName?: string
 }
 
 interface FormData {
-  name: string
+  variantValue: string
   description: string
 }
 
 const emptyForm: FormData = {
-  name: '',
+  variantValue: '',
   description: '',
 }
 
 // ── Component ────────────────────────────────────────────
 
-export default function SizeSystemFormDialog({
+export default function VariantFormDialog({
   open,
   onOpenChange,
-  sizeSystem,
-}: SizeSystemFormDialogProps) {
-  const isEditing = !!sizeSystem
+  variant,
+  variantSystemId,
+  variantSystemName,
+}: VariantFormDialogProps) {
+  const isEditing = !!variant
 
   const [form, setForm] = useState<FormData>(emptyForm)
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({})
@@ -51,10 +56,10 @@ export default function SizeSystemFormDialog({
   if (open && !prevOpen) {
     setPrevOpen(true)
     setForm(
-      sizeSystem
+      variant
         ? {
-            name: sizeSystem.name ?? '',
-            description: sizeSystem.description ?? '',
+            variantValue: variant.variantValue ?? '',
+            description: variant.description ?? '',
           }
         : emptyForm,
     )
@@ -66,11 +71,11 @@ export default function SizeSystemFormDialog({
 
   // ── Mutations ─────────────────────────────────────
 
-  const createMutation = useCreateSizeSystem({
+  const createMutation = useCreateVariant({
     onSuccess: () => onOpenChange(false),
   })
 
-  const updateMutation = useUpdateSizeSystem({
+  const updateMutation = useUpdateVariant({
     onSuccess: () => onOpenChange(false),
   })
 
@@ -81,9 +86,9 @@ export default function SizeSystemFormDialog({
   function validate(): boolean {
     const newErrors: Partial<Record<keyof FormData, string>> = {}
 
-    if (!form.name.trim()) newErrors.name = 'El nombre es requerido'
-    if (form.name.trim().length > 100) newErrors.name = 'Máximo 100 caracteres'
-    if (form.description.length > 200) newErrors.description = 'Máximo 200 caracteres'
+    if (!form.variantValue.trim()) newErrors.variantValue = 'El valor de variante es requerido'
+    if (form.variantValue.trim().length > 150) newErrors.variantValue = 'Máximo 150 caracteres'
+    if (form.description.length > 250) newErrors.description = 'Máximo 250 caracteres'
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -95,15 +100,16 @@ export default function SizeSystemFormDialog({
     e.preventDefault()
     if (!validate()) return
 
-    const payload: CreateSizeSystemRequest = {
-      name: form.name.trim(),
+    const payload: CreateVariantRequest = {
+      variantValue: form.variantValue.trim(),
       description: form.description.trim() || null,
     }
 
     if (isEditing) {
-      updateMutation.mutate({ id: sizeSystem!.sizeSystemId, data: payload })
+      updateMutation.mutate({ id: variant!.productVariantId, data: payload })
     } else {
-      createMutation.mutate(payload)
+      if (!variantSystemId) return
+      createMutation.mutate({ systemId: variantSystemId, data: payload })
     }
   }
 
@@ -118,42 +124,42 @@ export default function SizeSystemFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='sm:max-w-[450px]'>
+      <DialogContent className='sm:max-w-[400px]'>
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? 'Editar Sistema de Tallas' : 'Nuevo Sistema de Tallas'}
+            {isEditing ? 'Editar Variante' : 'Nueva Variante'}
           </DialogTitle>
           <DialogDescription>
             {isEditing
-              ? 'Modifica los campos del sistema de tallas.'
-              : 'Completa los datos para crear un nuevo sistema de tallas.'}
+              ? `Modifica la variante del sistema "${variant?.productVariantSystemName ?? ''}".`
+              : `Agrega una variante al sistema "${variantSystemName ?? ''}".`}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className='space-y-4'>
-          {/* Name */}
+          {/* Variant Value */}
           <div className='space-y-2'>
-            <Label htmlFor='ss-name'>Nombre *</Label>
+            <Label htmlFor='variant-value'>Valor de variante *</Label>
             <Input
-              id='ss-name'
-              value={form.name}
-              onChange={(e) => setField('name', e.target.value)}
-              placeholder='Ej: Tallas numéricas, Tallas letra'
+              id='variant-value'
+              value={form.variantValue}
+              onChange={(e) => setField('variantValue', e.target.value)}
+              placeholder='Ej: Rojo, Azul, Algodón...'
               disabled={isPending}
             />
-            {errors.name && (
-              <p className='text-destructive text-xs'>{errors.name}</p>
+            {errors.variantValue && (
+              <p className='text-destructive text-xs'>{errors.variantValue}</p>
             )}
           </div>
 
           {/* Description */}
           <div className='space-y-2'>
-            <Label htmlFor='ss-description'>Descripción</Label>
+            <Label htmlFor='variant-description'>Descripción</Label>
             <Textarea
-              id='ss-description'
+              id='variant-description'
               value={form.description}
               onChange={(e) => setField('description', e.target.value)}
-              placeholder='Descripción opcional del sistema'
+              placeholder='Descripción opcional'
               rows={2}
               disabled={isPending}
             />

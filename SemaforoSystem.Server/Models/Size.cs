@@ -24,6 +24,9 @@ public partial class Size
     [Column("size_system_id")]
     public int? SizeSystemId { get; set; }
 
+    [Column("size_order")]
+    public int? SizeOrder { get; set; }
+
     [InverseProperty("Size")]
     public virtual ICollection<ProductPrice> ProductPrices { get; set; } = new List<ProductPrice>();
 
