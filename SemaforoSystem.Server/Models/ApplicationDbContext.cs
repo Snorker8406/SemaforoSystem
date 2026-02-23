@@ -309,6 +309,8 @@ public partial class ApplicationDbContext : DbContext
 
             entity.HasOne(d => d.ProductPicture).WithMany(p => p.Products).HasConstraintName("products_product_picture_id_fkey");
 
+            entity.HasOne(d => d.SizeSystem).WithMany(p => p.Products).HasConstraintName("products_size_system_id_fkey");
+
             entity.HasMany(d => d.Categories).WithMany(p => p.Products)
                 .UsingEntity<Dictionary<string, object>>(
                     "ProductCategory",

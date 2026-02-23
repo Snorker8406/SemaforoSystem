@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace SemaforoSystem.Server.Models;
 
 [Table("products")]
+[Index("SizeSystemId", Name = "fki_s")]
 public partial class Product
 {
     [Key]
@@ -47,6 +48,9 @@ public partial class Product
     [Column("serialize")]
     public bool? Serialize { get; set; }
 
+    [Column("size_system_id")]
+    public int? SizeSystemId { get; set; }
+
     [ForeignKey("BrandId")]
     [InverseProperty("Products")]
     public virtual Brand? Brand { get; set; }
@@ -69,6 +73,10 @@ public partial class Product
 
     [InverseProperty("Product")]
     public virtual ICollection<SalesDetail> SalesDetails { get; set; } = new List<SalesDetail>();
+
+    [ForeignKey("SizeSystemId")]
+    [InverseProperty("Products")]
+    public virtual SizeSystem? SizeSystem { get; set; }
 
     [InverseProperty("Product")]
     public virtual ICollection<Stock> Stocks { get; set; } = new List<Stock>();

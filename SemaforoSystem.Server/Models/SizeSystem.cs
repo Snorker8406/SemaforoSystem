@@ -23,5 +23,8 @@ public partial class SizeSystem
     public string? Description { get; set; }
 
     [InverseProperty("SizeSystem")]
+    public virtual ICollection<Product> Products { get; set; } = new List<Product>();
+
+    [InverseProperty("SizeSystem")]
     public virtual ICollection<Size> Sizes { get; set; } = new List<Size>();
 }
