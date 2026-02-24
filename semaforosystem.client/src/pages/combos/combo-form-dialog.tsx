@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 
 import {
   Dialog,
@@ -12,8 +13,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
+import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
+import { SearchIcon, XIcon } from 'lucide-react'
 
 import type { ProductComboResponse } from '@/services/combo-service'
+import { getSchoolsLookup } from '@/services/school-service'
 import { useCreateCombo, useUpdateCombo } from '@/hooks/use-combos'
 
 // ── Types ────────────────────────────────────────────────
@@ -27,11 +33,15 @@ interface ComboFormDialogProps {
 interface FormData {
   name: string
   description: string
+  active: boolean
+  schoolIds: number[]
 }
 
 const emptyForm: FormData = {
   name: '',
   description: '',
+  active: true,
+  schoolIds: [],
 }
 
 // ── Component ────────────────────────────────────────────
@@ -46,6 +56,21 @@ export default function ComboFormDialog({
   const [form, setForm] = useState<FormData>(emptyForm)
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({})
   const [prevOpen, setPrevOpen] = useState(false)
+  const [schoolSearch, setSchoolSearch] = useState('')
+
+  // ── Schools lookup ────────────────────────────────
+
+  const { data: schools = [] } = useQuery({
+    queryKey: ['schools', 'lookup'],
+    queryFn: getSchoolsLookup,
+    staleTime: 10 * 60 * 1000,
+  })
+
+  const filteredSchools = schoolSearch
+    ? schools.filter((s) =>
+        s.name.toLowerCase().includes(schoolSearch.toLowerCase()),
+      )
+    : schools
 
   // ── Mutations ─────────────────────────────────────
 
@@ -68,10 +93,13 @@ export default function ComboFormDialog({
         ? {
             name: combo.name,
             description: combo.description ?? '',
+            active: combo.active ?? true,
+            schoolIds: combo.schools?.map((s) => s.schoolId) ?? [],
           }
         : emptyForm,
     )
     setErrors({})
+    setSchoolSearch('')
   }
 
   if (!open && prevOpen) {
@@ -98,6 +126,8 @@ export default function ComboFormDialog({
     const payload = {
       name: form.name.trim(),
       description: form.description.trim() || null,
+      active: form.active,
+      schoolIds: form.schoolIds,
     }
 
     if (isEditing) {
@@ -122,7 +152,7 @@ export default function ComboFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='sm:max-w-[500px]'>
+      <DialogContent className='sm:max-w-[560px]'>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>
@@ -163,6 +193,80 @@ export default function ComboFormDialog({
               {errors.description && (
                 <p className='text-destructive text-xs'>{errors.description}</p>
               )}
+            </div>
+
+            {/* Active */}
+            <div className='flex items-center justify-between rounded-lg border p-3'>
+              <div className='space-y-0.5'>
+                <Label htmlFor='combo-active'>Activo</Label>
+                <p className='text-muted-foreground text-xs'>
+                  Define si el combo está disponible.
+                </p>
+              </div>
+              <Switch
+                id='combo-active'
+                checked={form.active}
+                onCheckedChange={(checked) =>
+                  setForm((prev) => ({ ...prev, active: checked }))
+                }
+              />
+            </div>
+
+            {/* Schools */}
+            <div className='grid gap-2'>
+              <div className='flex items-center justify-between'>
+                <Label>Escuelas</Label>
+                {form.schoolIds.length > 0 && (
+                  <Badge variant='secondary' className='text-xs'>
+                    {form.schoolIds.length} seleccionada{form.schoolIds.length !== 1 ? 's' : ''}
+                  </Badge>
+                )}
+              </div>
+              <div className='relative'>
+                <SearchIcon className='text-muted-foreground absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2' />
+                <Input
+                  placeholder='Buscar escuela...'
+                  value={schoolSearch}
+                  onChange={(e) => setSchoolSearch(e.target.value)}
+                  className='h-8 pl-8 pr-8 text-sm'
+                />
+                {schoolSearch && (
+                  <button
+                    type='button'
+                    onClick={() => setSchoolSearch('')}
+                    className='text-muted-foreground hover:text-foreground absolute right-2.5 top-1/2 -translate-y-1/2'
+                  >
+                    <XIcon className='size-3.5' />
+                  </button>
+                )}
+              </div>
+              <div className='max-h-40 overflow-y-auto rounded-md border'>
+                {filteredSchools.length === 0 ? (
+                  <p className='text-muted-foreground p-3 text-center text-xs'>
+                    No se encontraron escuelas.
+                  </p>
+                ) : (
+                  filteredSchools.map((school) => (
+                    <label
+                      key={school.schoolId}
+                      className='hover:bg-muted/50 flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm'
+                    >
+                      <Checkbox
+                        checked={form.schoolIds.includes(school.schoolId)}
+                        onCheckedChange={(checked) => {
+                          setForm((prev) => ({
+                            ...prev,
+                            schoolIds: checked
+                              ? [...prev.schoolIds, school.schoolId]
+                              : prev.schoolIds.filter((id) => id !== school.schoolId),
+                          }))
+                        }}
+                      />
+                      {school.name}
+                    </label>
+                  ))
+                )}
+              </div>
             </div>
           </div>
 

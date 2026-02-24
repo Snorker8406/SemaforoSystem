@@ -63,12 +63,13 @@ public partial class School
     [InverseProperty("School")]
     public virtual ICollection<File> Files { get; set; } = new List<File>();
 
-    [InverseProperty("School")]
-    public virtual ICollection<ProductCombo> ProductCombos { get; set; } = new List<ProductCombo>();
-
     [ForeignKey("SchoolLevelId")]
     [InverseProperty("Schools")]
     public virtual SchoolLevel SchoolLevel { get; set; } = null!;
+
+    [ForeignKey("SchoolId")]
+    [InverseProperty("Schools")]
+    public virtual ICollection<ProductCombo> ProductCombos { get; set; } = new List<ProductCombo>();
 
     [ForeignKey("SchoolId")]
     [InverseProperty("Schools")]

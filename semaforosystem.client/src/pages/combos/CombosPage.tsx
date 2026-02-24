@@ -65,6 +65,7 @@ const SORT_MAP: Record<string, string> = {
   name: 'name',
   createDate: 'createdate',
   detailCount: 'detailcount',
+  active: 'active',
 }
 
 // ── Columns ──────────────────────────────────────────────
@@ -144,6 +145,25 @@ function createColumns(ctx: ColumnContext): ColumnDef<ProductComboResponse>[] {
       cell: ({ row }) => (
         <Badge variant='outline'>{row.original.priceCount}</Badge>
       ),
+    },
+    {
+      accessorKey: 'schoolCount',
+      header: () => <DataTableColumnHeader title='Escuelas' />,
+      cell: ({ row }) => (
+        <Badge variant='outline'>{row.original.schoolCount}</Badge>
+      ),
+    },
+    {
+      accessorKey: 'active',
+      header: () => <DataTableColumnHeader title='Estado' />,
+      cell: ({ row }) => {
+        const active = row.original.active
+        return active ? (
+          <Badge variant='default'>Activo</Badge>
+        ) : (
+          <Badge variant='secondary'>Inactivo</Badge>
+        )
+      },
     },
     {
       accessorKey: 'createDate',

@@ -411,6 +411,24 @@ public class SchoolsController(ApplicationDbContext db) : ControllerBase
         return NoContent();
     }
 
+    // ──────────────────── Lookup: schools (lightweight) ────────────────
+
+    /// <summary>
+    /// Returns all schools as a lightweight lookup list (id + name).
+    /// </summary>
+    [HttpGet("lookup")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetLookup(CancellationToken ct)
+    {
+        var items = await db.Schools
+            .AsNoTracking()
+            .OrderBy(s => s.Name)
+            .Select(s => new { s.SchoolId, s.Name })
+            .ToListAsync(ct);
+
+        return Ok(items);
+    }
+
     // ──────────────────── Lookup: school levels ────────────────────────
 
     /// <summary>

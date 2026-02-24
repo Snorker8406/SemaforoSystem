@@ -11,14 +11,22 @@ export interface ProductComboDetailResponse {
   embroideryName: string | null
 }
 
+export interface ComboSchoolInfo {
+  schoolId: number
+  name: string
+}
+
 export interface ProductComboResponse {
   productComboId: number
   name: string
   description: string | null
+  active: boolean | null
   createDate: string | null
   detailCount: number
   priceCount: number
+  schoolCount: number
   details: ProductComboDetailResponse[]
+  schools: ComboSchoolInfo[]
 }
 
 export interface ProductComboSummary {
@@ -29,6 +37,8 @@ export interface ProductComboSummary {
 export interface CreateProductComboRequest {
   name: string
   description?: string | null
+  active?: boolean | null
+  schoolIds?: number[] | null
 }
 
 export type UpdateProductComboRequest = CreateProductComboRequest

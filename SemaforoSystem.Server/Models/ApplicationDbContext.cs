@@ -373,7 +373,24 @@ public partial class ApplicationDbContext : DbContext
         {
             entity.HasKey(e => e.ProductComboId).HasName("product_combos_pkey");
 
-            entity.HasOne(d => d.School).WithMany(p => p.ProductCombos).HasConstraintName("product_combos_school_id_fkey");
+            entity.HasMany(d => d.Schools).WithMany(p => p.ProductCombos)
+                .UsingEntity<Dictionary<string, object>>(
+                    "ProductCombosSchool",
+                    r => r.HasOne<School>().WithMany()
+                        .HasForeignKey("SchoolId")
+                        .OnDelete(DeleteBehavior.ClientSetNull)
+                        .HasConstraintName("product_combos_schools_school_id_fkey"),
+                    l => l.HasOne<ProductCombo>().WithMany()
+                        .HasForeignKey("ProductComboId")
+                        .OnDelete(DeleteBehavior.ClientSetNull)
+                        .HasConstraintName("product_combos_schools_product_combo_id_fkey"),
+                    j =>
+                    {
+                        j.HasKey("ProductComboId", "SchoolId").HasName("product_combos_schools_pkey");
+                        j.ToTable("product_combos_schools");
+                        j.IndexerProperty<int>("ProductComboId").HasColumnName("product_combo_id");
+                        j.IndexerProperty<int>("SchoolId").HasColumnName("school_id");
+                    });
         });
 
         modelBuilder.Entity<ProductComboDetail>(entity =>

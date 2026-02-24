@@ -12,10 +12,20 @@ public class ProductComboResponse
     public int ProductComboId { get; set; }
     public string Name { get; set; } = null!;
     public string? Description { get; set; }
+    public bool? Active { get; set; }
     public DateTime? CreateDate { get; set; }
     public int DetailCount { get; set; }
     public int PriceCount { get; set; }
+    public int SchoolCount { get; set; }
     public List<ProductComboDetailResponse> Details { get; set; } = [];
+    public List<ComboSchoolInfo> Schools { get; set; } = [];
+}
+
+/// <summary>Lightweight school info embedded in combo response.</summary>
+public class ComboSchoolInfo
+{
+    public int SchoolId { get; set; }
+    public string Name { get; set; } = null!;
 }
 
 /// <summary>Lightweight combo summary for lookups / dropdowns.</summary>
@@ -56,6 +66,10 @@ public class CreateProductComboRequest
 
     [StringLength(250)]
     public string? Description { get; set; }
+
+    public bool? Active { get; set; }
+
+    public List<int>? SchoolIds { get; set; }
 }
 
 public class UpdateProductComboRequest
@@ -65,6 +79,10 @@ public class UpdateProductComboRequest
 
     [StringLength(250)]
     public string? Description { get; set; }
+
+    public bool? Active { get; set; }
+
+    public List<int>? SchoolIds { get; set; }
 }
 
 // ═══════════════════════════════════════════════════════════════════

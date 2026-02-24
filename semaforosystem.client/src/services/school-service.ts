@@ -108,6 +108,15 @@ export async function deleteSchool(id: number): Promise<void> {
   return apiClient.delete<void>(`${BASE}/${id}`)
 }
 
+export interface SchoolLookupItem {
+  schoolId: number
+  name: string
+}
+
+export async function getSchoolsLookup(): Promise<SchoolLookupItem[]> {
+  return apiClient.get<SchoolLookupItem[]>(`${BASE}/lookup`)
+}
+
 export async function getSchoolLevels(): Promise<SchoolLevel[]> {
   return apiClient.get<SchoolLevel[]>(`${BASE}/levels`)
 }
