@@ -94,6 +94,7 @@ const navigation: NavGroup[] = [
           { label: 'Administrar Productos', href: '/products' },
           { label: 'Administrar Tallas', href: '/products/sizes' },
           { label: 'Administrar Variantes', href: '/products/variants' },
+          { label: 'Administrar Combos', href: '/products/combos' },
         ],
       },
       {
