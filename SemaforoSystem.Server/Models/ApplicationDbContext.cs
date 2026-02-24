@@ -372,6 +372,8 @@ public partial class ApplicationDbContext : DbContext
         modelBuilder.Entity<ProductCombo>(entity =>
         {
             entity.HasKey(e => e.ProductComboId).HasName("product_combos_pkey");
+
+            entity.HasOne(d => d.School).WithMany(p => p.ProductCombos).HasConstraintName("product_combos_school_id_fkey");
         });
 
         modelBuilder.Entity<ProductComboDetail>(entity =>

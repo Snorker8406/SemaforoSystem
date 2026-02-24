@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace SemaforoSystem.Server.Models;
 
 [Table("product_combos")]
+[Index("SchoolId", Name = "fki_product_combos_school_id_fkey")]
 public partial class ProductCombo
 {
     [Key]
@@ -24,9 +25,19 @@ public partial class ProductCombo
     [Column("create_date")]
     public DateTime? CreateDate { get; set; }
 
+    [Column("active")]
+    public bool? Active { get; set; }
+
+    [Column("school_id")]
+    public int? SchoolId { get; set; }
+
     [InverseProperty("ProductCombo")]
     public virtual ICollection<ProductComboDetail> ProductComboDetails { get; set; } = new List<ProductComboDetail>();
 
     [InverseProperty("ProductCombo")]
     public virtual ICollection<ProductPrice> ProductPrices { get; set; } = new List<ProductPrice>();
+
+    [ForeignKey("SchoolId")]
+    [InverseProperty("ProductCombos")]
+    public virtual School? School { get; set; }
 }
