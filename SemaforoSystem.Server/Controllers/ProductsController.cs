@@ -486,6 +486,187 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
 
         return Ok(categories);
     }
+
+    // ═══════════════════════════ Product Prices ═════════════════════════
+
+    // ───────────────────────────── helpers ──────────────────────────────
+
+    private static ProductPriceResponse MapPriceToResponse(ProductPrice pp) => new()
+    {
+        PriceId = pp.PriceId,
+        ProductId = pp.ProductId,
+        Price = pp.Price,
+        CreateDate = pp.CreateDate,
+        SizeId = pp.SizeId,
+        SizeValue = pp.Size?.SizeValue,
+        VariantId = pp.VariantId,
+        VariantValue = pp.Variant?.VariantValue,
+        ProductComboId = pp.ProductComboId,
+    };
+
+    // ───────────────────────────── GET prices ──────────────────────────
+
+    /// <summary>
+    /// Returns the latest prices for a product (most recent per size/variant/combo combination).
+    /// </summary>
+    [HttpGet("{productId:int}/prices")]
+    [ProducesResponseType(typeof(List<ProductPriceResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<List<ProductPriceResponse>>> GetPrices(
+        int productId, CancellationToken ct)
+    {
+        var productExists = await db.Products.AnyAsync(p => p.ProductId == productId, ct);
+        if (!productExists)
+            return NotFound(new { message = $"Product with ID {productId} was not found." });
+
+        // Get the latest price per (SizeId, VariantId, ProductComboId) combination
+        var prices = await db.ProductPrices
+            .Include(pp => pp.Size)
+            .Include(pp => pp.Variant)
+            .AsNoTracking()
+            .Where(pp => pp.ProductId == productId)
+            .GroupBy(pp => new { pp.SizeId, pp.VariantId, pp.ProductComboId })
+            .Select(g => g.OrderByDescending(pp => pp.CreateDate).First())
+            .ToListAsync(ct);
+
+        var result = prices.Select(MapPriceToResponse).ToList();
+        return Ok(result);
+    }
+
+    // ───────────────────────────── GET price by id ─────────────────────
+
+    /// <summary>
+    /// Returns a single price entry by its ID.
+    /// </summary>
+    [HttpGet("{productId:int}/prices/{priceId:int}")]
+    [ProducesResponseType(typeof(ProductPriceResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ProductPriceResponse>> GetPrice(
+        int productId, int priceId, CancellationToken ct)
+    {
+        var price = await db.ProductPrices
+            .Include(pp => pp.Size)
+            .Include(pp => pp.Variant)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(pp => pp.PriceId == priceId && pp.ProductId == productId, ct);
+
+        if (price is null)
+            return NotFound(new { message = $"Price with ID {priceId} was not found for product {productId}." });
+
+        return Ok(MapPriceToResponse(price));
+    }
+
+    // ───────────────────────────── POST create price ───────────────────
+
+    /// <summary>
+    /// Creates a new price entry for a product.
+    /// </summary>
+    [HttpPost("{productId:int}/prices")]
+    [ProducesResponseType(typeof(ProductPriceResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<ProductPriceResponse>> CreatePrice(
+        int productId,
+        [FromBody] CreateProductPriceRequest request,
+        CancellationToken ct)
+    {
+        var productExists = await db.Products.AnyAsync(p => p.ProductId == productId, ct);
+        if (!productExists)
+            return NotFound(new { message = $"Product with ID {productId} was not found." });
+
+        // Validate Size FK
+        if (request.SizeId.HasValue)
+        {
+            var sizeExists = await db.Sizes.AnyAsync(s => s.SizeId == request.SizeId.Value, ct);
+            if (!sizeExists)
+                return UnprocessableEntity(new { message = $"Size with ID {request.SizeId} does not exist." });
+        }
+
+        // Validate Variant FK
+        if (request.VariantId.HasValue)
+        {
+            var variantExists = await db.ProductVariants.AnyAsync(v => v.ProductVariantId == request.VariantId.Value, ct);
+            if (!variantExists)
+                return UnprocessableEntity(new { message = $"Variant with ID {request.VariantId} does not exist." });
+        }
+
+        // Validate ProductCombo FK
+        if (request.ProductComboId.HasValue)
+        {
+            var comboExists = await db.ProductCombos.AnyAsync(c => c.ProductComboId == request.ProductComboId.Value, ct);
+            if (!comboExists)
+                return UnprocessableEntity(new { message = $"Product combo with ID {request.ProductComboId} does not exist." });
+        }
+
+        var price = new ProductPrice
+        {
+            ProductId = productId,
+            Price = request.Price,
+            SizeId = request.SizeId,
+            VariantId = request.VariantId,
+            ProductComboId = request.ProductComboId,
+            CreateDate = DateTime.UtcNow,
+        };
+
+        db.ProductPrices.Add(price);
+        await db.SaveChangesAsync(ct);
+
+        // Reload navigations for response
+        await db.Entry(price).Reference(p => p.Size).LoadAsync(ct);
+        await db.Entry(price).Reference(p => p.Variant).LoadAsync(ct);
+
+        return CreatedAtAction(nameof(GetPrice), new { productId, priceId = price.PriceId }, MapPriceToResponse(price));
+    }
+
+    // ───────────────────────────── PUT update price ────────────────────
+
+    /// <summary>
+    /// Updates the price value of an existing price entry.
+    /// </summary>
+    [HttpPut("{productId:int}/prices/{priceId:int}")]
+    [ProducesResponseType(typeof(ProductPriceResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ProductPriceResponse>> UpdatePrice(
+        int productId, int priceId,
+        [FromBody] UpdateProductPriceRequest request,
+        CancellationToken ct)
+    {
+        var price = await db.ProductPrices
+            .Include(pp => pp.Size)
+            .Include(pp => pp.Variant)
+            .FirstOrDefaultAsync(pp => pp.PriceId == priceId && pp.ProductId == productId, ct);
+
+        if (price is null)
+            return NotFound(new { message = $"Price with ID {priceId} was not found for product {productId}." });
+
+        price.Price = request.Price;
+        await db.SaveChangesAsync(ct);
+
+        return Ok(MapPriceToResponse(price));
+    }
+
+    // ───────────────────────────── DELETE price ────────────────────────
+
+    /// <summary>
+    /// Deletes a price entry.
+    /// </summary>
+    [HttpDelete("{productId:int}/prices/{priceId:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeletePrice(
+        int productId, int priceId, CancellationToken ct)
+    {
+        var price = await db.ProductPrices
+            .FirstOrDefaultAsync(pp => pp.PriceId == priceId && pp.ProductId == productId, ct);
+
+        if (price is null)
+            return NotFound(new { message = $"Price with ID {priceId} was not found for product {productId}." });
+
+        db.ProductPrices.Remove(price);
+        await db.SaveChangesAsync(ct);
+
+        return NoContent();
+    }
 }
 
 public class BrandLookup

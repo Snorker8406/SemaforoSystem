@@ -413,7 +413,7 @@ public partial class ApplicationDbContext : DbContext
         {
             entity.HasKey(e => e.PriceId).HasName("product_prices_pkey");
 
-            entity.Property(e => e.PriceId).ValueGeneratedNever();
+            entity.Property(e => e.PriceId).UseIdentityAlwaysColumn();
 
             entity.HasOne(d => d.ProductCombo).WithMany(p => p.ProductPrices).HasConstraintName("product_prices_product_combo_id_fkey");
 

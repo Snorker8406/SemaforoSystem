@@ -5,6 +5,8 @@ import type {
   ProductQueryParams,
   CreateProductRequest,
   UpdateProductRequest,
+  CreateProductPriceRequest,
+  UpdateProductPriceRequest,
 } from '@/services/product-service'
 import {
   getProducts,
@@ -14,6 +16,10 @@ import {
   deleteProduct,
   getBrands,
   getCategories,
+  getProductPrices,
+  createProductPrice,
+  updateProductPrice,
+  deleteProductPrice,
 } from '@/services/product-service'
 import { ApiError } from '@/lib/api-client'
 
@@ -27,6 +33,7 @@ export const productKeys = {
   detail: (id: number) => [...productKeys.details(), id] as const,
   brands: () => ['product-brands'] as const,
   categories: () => ['product-categories'] as const,
+  prices: (productId: number) => [...productKeys.all, 'prices', productId] as const,
 }
 
 // ── Queries ──────────────────────────────────────────────
@@ -130,6 +137,101 @@ export function useDeleteProduct(options?: { onSuccess?: () => void }) {
         )
       } else {
         toast.error('Error al eliminar el producto')
+      }
+    },
+  })
+}
+
+// ── Product Prices ──────────────────────────────────────
+
+/** Fetch all prices for a product */
+export function useProductPrices(productId: number | null | undefined) {
+  return useQuery({
+    queryKey: productKeys.prices(productId!),
+    queryFn: () => getProductPrices(productId!),
+    enabled: productId != null,
+  })
+}
+
+/** Create a product price */
+export function useCreateProductPrice(options?: { onSuccess?: () => void }) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      productId,
+      data,
+    }: {
+      productId: number
+      data: CreateProductPriceRequest
+    }) => createProductPrice(productId, data),
+    onSuccess: (_resp, vars) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.prices(vars.productId) })
+      queryClient.invalidateQueries({ queryKey: productKeys.all })
+      options?.onSuccess?.()
+    },
+    onError: (error: Error) => {
+      if (error instanceof ApiError) {
+        const body = error.body as { message?: string }
+        toast.error(body?.message ?? 'Error al crear el precio')
+      } else {
+        toast.error('Error al crear el precio')
+      }
+    },
+  })
+}
+
+/** Update a product price */
+export function useUpdateProductPrice(options?: { onSuccess?: () => void }) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      productId,
+      priceId,
+      data,
+    }: {
+      productId: number
+      priceId: number
+      data: UpdateProductPriceRequest
+    }) => updateProductPrice(productId, priceId, data),
+    onSuccess: (_resp, vars) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.prices(vars.productId) })
+      queryClient.invalidateQueries({ queryKey: productKeys.all })
+      options?.onSuccess?.()
+    },
+    onError: (error: Error) => {
+      if (error instanceof ApiError) {
+        const body = error.body as { message?: string }
+        toast.error(body?.message ?? 'Error al actualizar el precio')
+      } else {
+        toast.error('Error al actualizar el precio')
+      }
+    },
+  })
+}
+
+/** Delete a product price */
+export function useDeleteProductPrice(options?: { onSuccess?: () => void }) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      productId,
+      priceId,
+    }: {
+      productId: number
+      priceId: number
+    }) => deleteProductPrice(productId, priceId),
+    onSuccess: (_resp, vars) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.prices(vars.productId) })
+      queryClient.invalidateQueries({ queryKey: productKeys.all })
+      toast.success('Precio eliminado exitosamente')
+      options?.onSuccess?.()
+    },
+    onError: (error: Error) => {
+      if (error instanceof ApiError) {
+        const body = error.body as { message?: string }
+        toast.error(body?.message ?? 'Error al eliminar el precio')
+      } else {
+        toast.error('Error al eliminar el precio')
       }
     },
   })

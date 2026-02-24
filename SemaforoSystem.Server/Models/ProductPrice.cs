@@ -25,7 +25,7 @@ public partial class ProductPrice
     [Precision(19, 4)]
     public decimal Price { get; set; }
 
-    [Column("create_date", TypeName = "timestamp without time zone")]
+    [Column("create_date", TypeName = "timestamp with time zone")]
     public DateTime CreateDate { get; set; }
 
     [Column("variant_id")]
