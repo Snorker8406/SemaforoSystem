@@ -130,6 +130,12 @@ export async function getCategories(): Promise<CategoryInfo[]> {
   return apiClient.get<CategoryInfo[]>(`${BASE}/categories`)
 }
 
+// ── Product Picture URL ──────────────────────────────────
+
+export function getProductPictureUrl(productId: number): string {
+  return `${BASE}/${productId}/picture`
+}
+
 // ── Product Price types ──────────────────────────────────
 
 export interface ProductPriceResponse {

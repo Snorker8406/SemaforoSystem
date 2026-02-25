@@ -104,14 +104,18 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
         else if (query.HasStock == false)
             q = q.Where(p => !p.Stocks.Any(s => s.Quantity > 0));
 
-        // ── Search (name, barcode, description) ──
+        // ── Search (name, barcode, description) — multi-word match ──
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
-            var term = query.Search.ToLower();
-            q = q.Where(p =>
-                (p.Name != null && p.Name.ToLower().Contains(term)) ||
-                (p.Barcode != null && p.Barcode.ToLower().Contains(term)) ||
-                (p.Description != null && p.Description.ToLower().Contains(term)));
+            var terms = query.Search.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var term in terms)
+            {
+                var t = term; // closure capture
+                q = q.Where(p =>
+                    (p.Name != null && p.Name.ToLower().Contains(t)) ||
+                    (p.Barcode != null && p.Barcode.ToLower().Contains(t)) ||
+                    (p.Description != null && p.Description.ToLower().Contains(t)));
+            }
         }
 
         // ── Sorting ──
@@ -666,6 +670,55 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
         await db.SaveChangesAsync(ct);
 
         return NoContent();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Product Picture
+    // ═══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Returns the main picture for a product (product_picture_id FK).
+    /// Falls back to the first picture in ProductPictures if main FK is null.
+    /// </summary>
+    [HttpGet("{productId:int}/picture")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetPicture(int productId, CancellationToken ct)
+    {
+        // Try the "main" picture first
+        var product = await db.Products
+            .AsNoTracking()
+            .Where(p => p.ProductId == productId)
+            .Select(p => new { p.ProductPictureId })
+            .FirstOrDefaultAsync(ct);
+
+        if (product is null)
+            return NotFound(new { message = $"Producto con ID {productId} no encontrado." });
+
+        byte[]? pictureBytes = null;
+
+        if (product.ProductPictureId is not null)
+        {
+            pictureBytes = await db.ProductPictures
+                .AsNoTracking()
+                .Where(pp => pp.ProductPictureId == product.ProductPictureId)
+                .Select(pp => pp.Picture)
+                .FirstOrDefaultAsync(ct);
+        }
+
+        // Fallback: first available picture
+        pictureBytes ??= await db.ProductPictures
+            .AsNoTracking()
+            .Where(pp => pp.ProductId == productId)
+            .OrderBy(pp => pp.ProductPictureId)
+            .Select(pp => pp.Picture)
+            .FirstOrDefaultAsync(ct);
+
+        if (pictureBytes is null or { Length: 0 })
+            return NotFound(new { message = "Este producto no tiene imagen." });
+
+        return File(pictureBytes, "image/png");
     }
 }
 
