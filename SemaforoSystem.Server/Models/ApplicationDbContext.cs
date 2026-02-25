@@ -101,6 +101,10 @@ public partial class ApplicationDbContext : DbContext
 
     public virtual DbSet<Stock> Stocks { get; set; }
 
+    public virtual DbSet<StockEntry> StockEntries { get; set; }
+
+    public virtual DbSet<StockExpense> StockExpenses { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
     }
@@ -585,8 +589,11 @@ public partial class ApplicationDbContext : DbContext
         {
             entity.HasKey(e => e.StockId).HasName("stock_pkey");
 
+            entity.Property(e => e.StockId).HasDefaultValueSql("nextval('stock_stock_id_seq'::regclass)");
             entity.Property(e => e.Barcode).HasDefaultValueSql("'100'::character varying");
             entity.Property(e => e.CreateDate).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.HasOne(d => d.Embroidery).WithMany(p => p.Stocks).HasConstraintName("stock_embroidery_id_fkey");
 
             entity.HasOne(d => d.Product).WithMany(p => p.Stocks)
                 .OnDelete(DeleteBehavior.ClientSetNull)
@@ -599,6 +606,22 @@ public partial class ApplicationDbContext : DbContext
                 .HasConstraintName("stock_site_id_fkey");
 
             entity.HasOne(d => d.Size).WithMany(p => p.Stocks).HasConstraintName("stock_size_id_fkey");
+
+            entity.HasOne(d => d.StockEntry).WithMany(p => p.Stocks).HasConstraintName("stock_stock_entry_id_fkey");
+        });
+
+        modelBuilder.Entity<StockEntry>(entity =>
+        {
+            entity.HasKey(e => e.StockEntryId).HasName("stock_entries_pkey");
+        });
+
+        modelBuilder.Entity<StockExpense>(entity =>
+        {
+            entity.HasKey(e => e.StockExpenseId).HasName("stock_expenses_pkey");
+
+            entity.HasOne(d => d.StockEntry).WithMany(p => p.StockExpenses)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("stock_expenses_stock_entry_id_fkey");
         });
 
         OnModelCreatingPartial(modelBuilder);

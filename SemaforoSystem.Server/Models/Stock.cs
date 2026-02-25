@@ -6,7 +6,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace SemaforoSystem.Server.Models;
 
-[Table("stock")]
+[Table("stocks")]
+[Index("EmbroideryId", Name = "fki_stock_embroidery_id_fkey")]
+[Index("StockEntryId", Name = "fki_stock_stock_entry_id_fkey")]
 public partial class Stock
 {
     [Key]
@@ -25,8 +27,7 @@ public partial class Stock
     [Column("sale_detail_id")]
     public int? SaleDetailId { get; set; }
 
-    [Column("price_special")]
-    [Precision(19, 4)]
+    [Column("price_special", TypeName = "money")]
     public decimal? PriceSpecial { get; set; }
 
     [Column("create_date", TypeName = "timestamp without time zone")]
@@ -35,12 +36,28 @@ public partial class Stock
     [Column("serial_number")]
     public int? SerialNumber { get; set; }
 
-    [Column("quantity")]
-    public int? Quantity { get; set; }
-
     [Column("barcode")]
     [StringLength(4)]
     public string Barcode { get; set; } = null!;
+
+    [Column("stock_entry_id")]
+    public int? StockEntryId { get; set; }
+
+    [Column("variant_id")]
+    public int? VariantId { get; set; }
+
+    [Column("price_id")]
+    public int? PriceId { get; set; }
+
+    [Column("embroidery_id")]
+    public int? EmbroideryId { get; set; }
+
+    [Column("quantity")]
+    public int? Quantity { get; set; }
+
+    [ForeignKey("EmbroideryId")]
+    [InverseProperty("Stocks")]
+    public virtual Embroidery? Embroidery { get; set; }
 
     [ForeignKey("ProductId")]
     [InverseProperty("Stocks")]
@@ -57,4 +74,8 @@ public partial class Stock
     [ForeignKey("SizeId")]
     [InverseProperty("Stocks")]
     public virtual Size? Size { get; set; }
+
+    [ForeignKey("StockEntryId")]
+    [InverseProperty("Stocks")]
+    public virtual StockEntry? StockEntry { get; set; }
 }
