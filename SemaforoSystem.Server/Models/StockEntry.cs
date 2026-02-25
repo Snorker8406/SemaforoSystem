@@ -16,10 +16,12 @@ public partial class StockEntry
     [Column("entry_date")]
     public DateTime EntryDate { get; set; }
 
-    [Column("user_id", TypeName = "character varying")]
-    public string UserId { get; set; } = null!;
+    [Column("user_id")]
+    [StringLength(200)]
+    public string? UserId { get; set; }
 
-    [Column("comments", TypeName = "character varying")]
+    [Column("comments")]
+    [StringLength(250)]
     public string? Comments { get; set; }
 
     [InverseProperty("StockEntry")]

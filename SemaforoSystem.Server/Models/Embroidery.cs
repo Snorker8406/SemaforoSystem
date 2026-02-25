@@ -20,7 +20,7 @@ public partial class Embroidery
     [StringLength(150)]
     public string Name { get; set; } = null!;
 
-    [Column("create_date", TypeName = "timestamp without time zone")]
+    [Column("create_date")]
     public DateTime? CreateDate { get; set; }
 
     [Column("emb_file")]

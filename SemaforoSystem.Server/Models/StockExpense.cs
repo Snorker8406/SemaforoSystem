@@ -20,7 +20,8 @@ public partial class StockExpense
     [Column("amount", TypeName = "money")]
     public decimal Amount { get; set; }
 
-    [Column("comments", TypeName = "character varying")]
+    [Column("comments")]
+    [StringLength(250)]
     public string? Comments { get; set; }
 
     [ForeignKey("StockEntryId")]
