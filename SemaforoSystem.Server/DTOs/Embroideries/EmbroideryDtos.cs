@@ -12,11 +12,11 @@ public class EmbroideryResponse
     public string? Stiches { get; set; }
     public string? ColorSecuence { get; set; }
     public decimal? Price { get; set; }
-    public string? ImageDesign { get; set; }
     public DateTime? CreateDate { get; set; }
     public bool HasEmbFile { get; set; }
     public bool HasDstFile { get; set; }
     public bool HasImage { get; set; }
+    public string? ImageDesignBase64 { get; set; }
 }
 
 public class EmbroideryLookup
@@ -43,7 +43,6 @@ public class CreateEmbroideryRequest
     public string? Stiches { get; set; }
     public string? ColorSecuence { get; set; }
     public decimal? Price { get; set; }
-    public string? ImageDesign { get; set; }
 }
 
 public class UpdateEmbroideryRequest
@@ -54,5 +53,4 @@ public class UpdateEmbroideryRequest
     public string? Stiches { get; set; }
     public string? ColorSecuence { get; set; }
     public decimal? Price { get; set; }
-    public string? ImageDesign { get; set; }
 }

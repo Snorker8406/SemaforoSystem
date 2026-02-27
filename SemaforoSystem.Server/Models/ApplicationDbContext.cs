@@ -593,8 +593,6 @@ public partial class ApplicationDbContext : DbContext
             entity.Property(e => e.Barcode).HasDefaultValueSql("'100'::character varying");
             entity.Property(e => e.CreateDate).HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-            entity.HasOne(d => d.Embroidery).WithMany(p => p.Stocks).HasConstraintName("stock_embroidery_id_fkey");
-
             entity.HasOne(d => d.Product).WithMany(p => p.Stocks)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("stock_product_id_fkey");
@@ -608,6 +606,25 @@ public partial class ApplicationDbContext : DbContext
             entity.HasOne(d => d.Size).WithMany(p => p.Stocks).HasConstraintName("stock_size_id_fkey");
 
             entity.HasOne(d => d.StockEntry).WithMany(p => p.Stocks).HasConstraintName("stock_stock_entry_id_fkey");
+
+            entity.HasMany(d => d.Embroideries).WithMany(p => p.Stocks)
+                .UsingEntity<Dictionary<string, object>>(
+                    "StockEmbroidery",
+                    r => r.HasOne<Embroidery>().WithMany()
+                        .HasForeignKey("EmbroideryId")
+                        .OnDelete(DeleteBehavior.ClientSetNull)
+                        .HasConstraintName("stock_embroidery_embroidery_id_fkey"),
+                    l => l.HasOne<Stock>().WithMany()
+                        .HasForeignKey("StockId")
+                        .OnDelete(DeleteBehavior.ClientSetNull)
+                        .HasConstraintName("stock_embroidery_stock_id_fkey"),
+                    j =>
+                    {
+                        j.HasKey("StockId", "EmbroideryId").HasName("stock_embroidery_pkey");
+                        j.ToTable("stock_embroidery");
+                        j.IndexerProperty<int>("StockId").HasColumnName("stock_id");
+                        j.IndexerProperty<int>("EmbroideryId").HasColumnName("embroidery_id");
+                    });
         });
 
         modelBuilder.Entity<StockEntry>(entity =>

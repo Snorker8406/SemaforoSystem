@@ -194,6 +194,42 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
         return Ok(MapToResponse(product));
     }
 
+    // ───────────────────────────── GET schools ─────────────────────────
+
+    /// <summary>
+    /// Returns the schools (with school level) that use this product.
+    /// </summary>
+    [HttpGet("{id:int}/schools")]
+    [ProducesResponseType(typeof(List<ProductSchoolInfo>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<List<ProductSchoolInfo>>> GetSchools(int id, CancellationToken ct)
+    {
+        var product = await db.Products
+            .AsNoTracking()
+            .Where(p => p.ProductId == id)
+            .Select(p => new
+            {
+                p.ProductId,
+                Schools = p.Schools
+                    .OrderBy(s => s.SchoolLevel.Name)
+                    .ThenBy(s => s.Name)
+                    .Select(s => new ProductSchoolInfo
+                    {
+                        SchoolId = s.SchoolId,
+                        Name = s.Name,
+                        SchoolLevelId = s.SchoolLevelId,
+                        SchoolLevelName = s.SchoolLevel.Name,
+                    })
+                    .ToList(),
+            })
+            .FirstOrDefaultAsync(ct);
+
+        if (product is null)
+            return NotFound(new { message = $"Product with ID {id} was not found." });
+
+        return Ok(product.Schools);
+    }
+
     // ───────────────────────────── POST create ─────────────────────────
 
     /// <summary>

@@ -45,8 +45,7 @@ public class StockLineResponse
     public int? SizeId { get; set; }
     public string? SizeValue { get; set; }
     public int? VariantId { get; set; }
-    public int? EmbroideryId { get; set; }
-    public string? EmbroideryName { get; set; }
+    public List<StockEmbroideryInfo> Embroideries { get; set; } = [];
     public int? Quantity { get; set; }
     public string Barcode { get; set; } = null!;
     public int? SerialNumber { get; set; }
@@ -55,6 +54,12 @@ public class StockLineResponse
     public int? SaleDetailId { get; set; }
     public int? StockEntryId { get; set; }
     public DateTime? CreateDate { get; set; }
+}
+
+public class StockEmbroideryInfo
+{
+    public int EmbroideryId { get; set; }
+    public string Name { get; set; } = null!;
 }
 
 /// <summary>Response for a stock expense line.</summary>
@@ -123,7 +128,7 @@ public class CreateStockRequest
 
     public int? SizeId { get; set; }
     public int? VariantId { get; set; }
-    public int? EmbroideryId { get; set; }
+    public List<int> EmbroideryIds { get; set; } = [];
     public int? Quantity { get; set; }
 
     [StringLength(4)]
@@ -144,7 +149,7 @@ public class UpdateStockRequest
 
     public int? SizeId { get; set; }
     public int? VariantId { get; set; }
-    public int? EmbroideryId { get; set; }
+    public List<int> EmbroideryIds { get; set; } = [];
     public int? Quantity { get; set; }
 
     [StringLength(4)]

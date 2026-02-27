@@ -44,12 +44,11 @@ public partial class Embroidery
     [Precision(19, 4)]
     public decimal? Price { get; set; }
 
-    [Column("image_design")]
-    [StringLength(10)]
-    public string? ImageDesign { get; set; }
-
     [Column("image")]
     public byte[]? Image { get; set; }
+
+    [Column("image_design")]
+    public byte[]? ImageDesign { get; set; }
 
     [InverseProperty("Embroidery")]
     public virtual ICollection<ProductComboDetail> ProductComboDetails { get; set; } = new List<ProductComboDetail>();
@@ -58,6 +57,7 @@ public partial class Embroidery
     [InverseProperty("Embroideries")]
     public virtual School? School { get; set; }
 
-    [InverseProperty("Embroidery")]
+    [ForeignKey("EmbroideryId")]
+    [InverseProperty("Embroideries")]
     public virtual ICollection<Stock> Stocks { get; set; } = new List<Stock>();
 }

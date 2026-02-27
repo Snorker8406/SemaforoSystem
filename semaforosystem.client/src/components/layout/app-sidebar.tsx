@@ -15,6 +15,7 @@ import {
   HashIcon,
   PackageIcon,
   PackageSearchIcon,
+  ScissorsIcon,
   SchoolIcon,
   SettingsIcon,
   SquareActivityIcon,
@@ -98,6 +99,7 @@ const navigation: NavGroup[] = [
           { label: 'Administrar Combos', href: '/products/combos' },
         ],
       },
+      { label: 'Ponchados', href: '/embroideries', icon: ScissorsIcon },
       {
         label: 'Proceso Surtido',
         href: '#',

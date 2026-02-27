@@ -7,7 +7,6 @@ using Microsoft.EntityFrameworkCore;
 namespace SemaforoSystem.Server.Models;
 
 [Table("stocks")]
-[Index("EmbroideryId", Name = "fki_stock_embroidery_id_fkey")]
 [Index("StockEntryId", Name = "fki_stock_stock_entry_id_fkey")]
 public partial class Stock
 {
@@ -49,15 +48,8 @@ public partial class Stock
     [Column("price_id")]
     public int? PriceId { get; set; }
 
-    [Column("embroidery_id")]
-    public int? EmbroideryId { get; set; }
-
     [Column("quantity")]
     public int? Quantity { get; set; }
-
-    [ForeignKey("EmbroideryId")]
-    [InverseProperty("Stocks")]
-    public virtual Embroidery? Embroidery { get; set; }
 
     [ForeignKey("ProductId")]
     [InverseProperty("Stocks")]
@@ -78,4 +70,8 @@ public partial class Stock
     [ForeignKey("StockEntryId")]
     [InverseProperty("Stocks")]
     public virtual StockEntry? StockEntry { get; set; }
+
+    [ForeignKey("StockId")]
+    [InverseProperty("Stocks")]
+    public virtual ICollection<Embroidery> Embroideries { get; set; } = new List<Embroidery>();
 }

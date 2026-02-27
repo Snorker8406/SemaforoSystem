@@ -27,8 +27,14 @@ public class StocksController(ApplicationDbContext db) : ControllerBase
         SizeId = s.SizeId,
         SizeValue = s.Size?.SizeValue,
         VariantId = s.VariantId,
-        EmbroideryId = s.EmbroideryId,
-        EmbroideryName = s.Embroidery?.Name,
+        Embroideries = s.Embroideries
+            .OrderBy(e => e.Name)
+            .Select(e => new StockEmbroideryInfo
+            {
+                EmbroideryId = e.EmbroideryId,
+                Name = e.Name,
+            })
+            .ToList(),
         Quantity = s.Quantity,
         Barcode = s.Barcode,
         SerialNumber = s.SerialNumber,
@@ -85,7 +91,7 @@ public class StocksController(ApplicationDbContext db) : ControllerBase
             .Include(s => s.Product)
             .Include(s => s.Site)
             .Include(s => s.Size)
-            .Include(s => s.Embroidery);
+            .Include(s => s.Embroideries);
 
     // ═══════════════════════════════════════════════════════════════════
     //  STOCK ENTRY (header) endpoints
@@ -165,7 +171,7 @@ public class StocksController(ApplicationDbContext db) : ControllerBase
             .Include(e => e.Stocks).ThenInclude(s => s.Product)
             .Include(e => e.Stocks).ThenInclude(s => s.Site)
             .Include(e => e.Stocks).ThenInclude(s => s.Size)
-            .Include(e => e.Stocks).ThenInclude(s => s.Embroidery)
+            .Include(e => e.Stocks).ThenInclude(s => s.Embroideries)
             .Include(e => e.StockExpenses)
             .AsNoTracking()
             .FirstOrDefaultAsync(e => e.StockEntryId == id, ct);
@@ -216,7 +222,7 @@ public class StocksController(ApplicationDbContext db) : ControllerBase
             .Include(e => e.Stocks).ThenInclude(s => s.Product)
             .Include(e => e.Stocks).ThenInclude(s => s.Site)
             .Include(e => e.Stocks).ThenInclude(s => s.Size)
-            .Include(e => e.Stocks).ThenInclude(s => s.Embroidery)
+            .Include(e => e.Stocks).ThenInclude(s => s.Embroideries)
             .Include(e => e.StockExpenses)
             .FirstOrDefaultAsync(e => e.StockEntryId == id, ct);
 
@@ -281,7 +287,7 @@ public class StocksController(ApplicationDbContext db) : ControllerBase
         if (query.SizeId.HasValue)
             q = q.Where(s => s.SizeId == query.SizeId.Value);
         if (query.EmbroideryId.HasValue)
-            q = q.Where(s => s.EmbroideryId == query.EmbroideryId.Value);
+            q = q.Where(s => s.Embroideries.Any(e => e.EmbroideryId == query.EmbroideryId.Value));
         if (query.StockEntryId.HasValue)
             q = q.Where(s => s.StockEntryId == query.StockEntryId.Value);
         if (query.HasQuantity == true)
@@ -386,12 +392,16 @@ public class StocksController(ApplicationDbContext db) : ControllerBase
                 return UnprocessableEntity(new { message = $"Talla con ID {request.SizeId} no existe." });
         }
 
-        // Validate embroidery (optional)
-        if (request.EmbroideryId.HasValue)
+        // Validate embroideries (optional, M2M)
+        if (request.EmbroideryIds.Count > 0)
         {
-            var embExists = await db.Embroideries.AnyAsync(e => e.EmbroideryId == request.EmbroideryId.Value, ct);
-            if (!embExists)
-                return UnprocessableEntity(new { message = $"Bordado con ID {request.EmbroideryId} no existe." });
+            var existingEmbIds = await db.Embroideries
+                .Where(e => request.EmbroideryIds.Contains(e.EmbroideryId))
+                .Select(e => e.EmbroideryId)
+                .ToListAsync(ct);
+            var missingEmb = request.EmbroideryIds.Except(existingEmbIds).ToList();
+            if (missingEmb.Count > 0)
+                return UnprocessableEntity(new { message = $"Bordados no encontrados: {string.Join(", ", missingEmb)}" });
         }
 
         var entity = new Stock
@@ -400,7 +410,6 @@ public class StocksController(ApplicationDbContext db) : ControllerBase
             SiteId = request.SiteId,
             SizeId = request.SizeId,
             VariantId = request.VariantId,
-            EmbroideryId = request.EmbroideryId,
             Quantity = request.Quantity,
             Barcode = request.Barcode ?? "",
             SerialNumber = request.SerialNumber,
@@ -409,6 +418,15 @@ public class StocksController(ApplicationDbContext db) : ControllerBase
             CreateDate = DateTime.UtcNow,
         };
 
+        // Associate embroideries (M2M)
+        if (request.EmbroideryIds.Count > 0)
+        {
+            var embroideries = await db.Embroideries
+                .Where(e => request.EmbroideryIds.Contains(e.EmbroideryId))
+                .ToListAsync(ct);
+            entity.Embroideries = embroideries;
+        }
+
         db.Stocks.Add(entity);
         await db.SaveChangesAsync(ct);
 
@@ -416,7 +434,7 @@ public class StocksController(ApplicationDbContext db) : ControllerBase
         await db.Entry(entity).Reference(e => e.Product).LoadAsync(ct);
         await db.Entry(entity).Reference(e => e.Site).LoadAsync(ct);
         if (entity.SizeId.HasValue) await db.Entry(entity).Reference(e => e.Size).LoadAsync(ct);
-        if (entity.EmbroideryId.HasValue) await db.Entry(entity).Reference(e => e.Embroidery).LoadAsync(ct);
+        await db.Entry(entity).Collection(e => e.Embroideries).LoadAsync(ct);
 
         return CreatedAtAction(nameof(GetStockById), new { id = entity.StockId }, MapStockToResponse(entity));
     }
@@ -463,24 +481,38 @@ public class StocksController(ApplicationDbContext db) : ControllerBase
                 return UnprocessableEntity(new { message = $"Talla con ID {request.SizeId} no existe." });
         }
 
-        // Validate embroidery (optional)
-        if (request.EmbroideryId.HasValue && request.EmbroideryId != entity.EmbroideryId)
+        // Validate embroideries (optional, M2M)
+        if (request.EmbroideryIds.Count > 0)
         {
-            var embExists = await db.Embroideries.AnyAsync(e => e.EmbroideryId == request.EmbroideryId.Value, ct);
-            if (!embExists)
-                return UnprocessableEntity(new { message = $"Bordado con ID {request.EmbroideryId} no existe." });
+            var existingEmbIds = await db.Embroideries
+                .Where(e => request.EmbroideryIds.Contains(e.EmbroideryId))
+                .Select(e => e.EmbroideryId)
+                .ToListAsync(ct);
+            var missingEmb = request.EmbroideryIds.Except(existingEmbIds).ToList();
+            if (missingEmb.Count > 0)
+                return UnprocessableEntity(new { message = $"Bordados no encontrados: {string.Join(", ", missingEmb)}" });
         }
 
         entity.ProductId = request.ProductId;
         entity.SiteId = request.SiteId;
         entity.SizeId = request.SizeId;
         entity.VariantId = request.VariantId;
-        entity.EmbroideryId = request.EmbroideryId;
         entity.Quantity = request.Quantity;
         entity.Barcode = request.Barcode ?? entity.Barcode;
         entity.SerialNumber = request.SerialNumber;
         entity.PriceSpecial = request.PriceSpecial;
         entity.PriceId = request.PriceId;
+
+        // Update embroideries (replace all — M2M)
+        entity.Embroideries.Clear();
+        if (request.EmbroideryIds.Count > 0)
+        {
+            var embroideries = await db.Embroideries
+                .Where(e => request.EmbroideryIds.Contains(e.EmbroideryId))
+                .ToListAsync(ct);
+            foreach (var emb in embroideries)
+                entity.Embroideries.Add(emb);
+        }
 
         await db.SaveChangesAsync(ct);
 
@@ -488,7 +520,7 @@ public class StocksController(ApplicationDbContext db) : ControllerBase
         await db.Entry(entity).Reference(e => e.Product).LoadAsync(ct);
         await db.Entry(entity).Reference(e => e.Site).LoadAsync(ct);
         if (entity.SizeId.HasValue) await db.Entry(entity).Reference(e => e.Size).LoadAsync(ct);
-        if (entity.EmbroideryId.HasValue) await db.Entry(entity).Reference(e => e.Embroidery).LoadAsync(ct);
+        await db.Entry(entity).Collection(e => e.Embroideries).LoadAsync(ct);
 
         return Ok(MapStockToResponse(entity));
     }
@@ -565,6 +597,18 @@ public class StocksController(ApplicationDbContext db) : ControllerBase
         if (!siteExists)
             return UnprocessableEntity(new { message = $"Sitio con ID {request.SiteId} no existe." });
 
+        // Validate embroideries (optional, M2M)
+        if (request.EmbroideryIds.Count > 0)
+        {
+            var existingEmbIds = await db.Embroideries
+                .Where(e => request.EmbroideryIds.Contains(e.EmbroideryId))
+                .Select(e => e.EmbroideryId)
+                .ToListAsync(ct);
+            var missingEmb = request.EmbroideryIds.Except(existingEmbIds).ToList();
+            if (missingEmb.Count > 0)
+                return UnprocessableEntity(new { message = $"Bordados no encontrados: {string.Join(", ", missingEmb)}" });
+        }
+
         var entity = new Stock
         {
             StockEntryId = entryId,
@@ -572,7 +616,6 @@ public class StocksController(ApplicationDbContext db) : ControllerBase
             SiteId = request.SiteId,
             SizeId = request.SizeId,
             VariantId = request.VariantId,
-            EmbroideryId = request.EmbroideryId,
             Quantity = request.Quantity,
             Barcode = request.Barcode ?? "",
             SerialNumber = request.SerialNumber,
@@ -581,6 +624,15 @@ public class StocksController(ApplicationDbContext db) : ControllerBase
             CreateDate = DateTime.UtcNow,
         };
 
+        // Associate embroideries (M2M)
+        if (request.EmbroideryIds.Count > 0)
+        {
+            var embroideries = await db.Embroideries
+                .Where(e => request.EmbroideryIds.Contains(e.EmbroideryId))
+                .ToListAsync(ct);
+            entity.Embroideries = embroideries;
+        }
+
         db.Stocks.Add(entity);
         await db.SaveChangesAsync(ct);
 
@@ -588,7 +640,7 @@ public class StocksController(ApplicationDbContext db) : ControllerBase
         await db.Entry(entity).Reference(e => e.Product).LoadAsync(ct);
         await db.Entry(entity).Reference(e => e.Site).LoadAsync(ct);
         if (entity.SizeId.HasValue) await db.Entry(entity).Reference(e => e.Size).LoadAsync(ct);
-        if (entity.EmbroideryId.HasValue) await db.Entry(entity).Reference(e => e.Embroidery).LoadAsync(ct);
+        await db.Entry(entity).Collection(e => e.Embroideries).LoadAsync(ct);
 
         return CreatedAtAction(nameof(GetStockById), new { id = entity.StockId }, MapStockToResponse(entity));
     }

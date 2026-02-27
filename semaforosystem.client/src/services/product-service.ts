@@ -136,6 +136,21 @@ export function getProductPictureUrl(productId: number): string {
   return `${BASE}/${productId}/picture`
 }
 
+// ── Product Schools ──────────────────────────────────────
+
+export interface ProductSchoolInfo {
+  schoolId: number
+  name: string
+  schoolLevelId: number
+  schoolLevelName: string
+}
+
+export async function getProductSchools(
+  productId: number,
+): Promise<ProductSchoolInfo[]> {
+  return apiClient.get<ProductSchoolInfo[]>(`${BASE}/${productId}/schools`)
+}
+
 // ── Product Price types ──────────────────────────────────
 
 export interface ProductPriceResponse {

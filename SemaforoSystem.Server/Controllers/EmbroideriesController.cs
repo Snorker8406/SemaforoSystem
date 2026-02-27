@@ -27,11 +27,13 @@ public class EmbroideriesController(ApplicationDbContext db) : ControllerBase
         Stiches = e.Stiches,
         ColorSecuence = e.ColorSecuence,
         Price = e.Price,
-        ImageDesign = e.ImageDesign,
         CreateDate = e.CreateDate,
         HasEmbFile = e.EmbFile is { Length: > 0 },
         HasDstFile = e.DstFile is { Length: > 0 },
         HasImage = e.Image is { Length: > 0 },
+        ImageDesignBase64 = e.ImageDesign is { Length: > 0 }
+            ? Convert.ToBase64String(e.ImageDesign)
+            : null,
     };
 
     private IQueryable<Embroidery> BaseQuery() =>
@@ -182,7 +184,6 @@ public class EmbroideriesController(ApplicationDbContext db) : ControllerBase
             Stiches = request.Stiches?.Trim(),
             ColorSecuence = request.ColorSecuence?.Trim(),
             Price = request.Price,
-            ImageDesign = request.ImageDesign?.Trim(),
             CreateDate = DateTime.UtcNow,
         };
 
@@ -232,7 +233,6 @@ public class EmbroideriesController(ApplicationDbContext db) : ControllerBase
         entity.Stiches = request.Stiches?.Trim();
         entity.ColorSecuence = request.ColorSecuence?.Trim();
         entity.Price = request.Price;
-        entity.ImageDesign = request.ImageDesign?.Trim();
 
         await db.SaveChangesAsync(ct);
 
@@ -300,6 +300,49 @@ public class EmbroideriesController(ApplicationDbContext db) : ControllerBase
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms, ct);
         entity.Image = ms.ToArray();
+
+        await db.SaveChangesAsync(ct);
+
+        return NoContent();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  ImageDesign upload / download
+    // ═══════════════════════════════════════════════════════════════════
+
+    /// <summary>Returns the image design.</summary>
+    [HttpGet("{id:int}/image-design")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetImageDesign(int id, CancellationToken ct)
+    {
+        var entity = await db.Embroideries
+            .AsNoTracking()
+            .Where(e => e.EmbroideryId == id)
+            .Select(e => new { e.ImageDesign })
+            .FirstOrDefaultAsync(ct);
+
+        if (entity?.ImageDesign is not { Length: > 0 })
+            return NotFound(new { message = "El bordado no tiene imagen de diseño." });
+
+        return File(entity.ImageDesign, "image/png");
+    }
+
+    /// <summary>Uploads an image design for the embroidery.</summary>
+    [HttpPut("{id:int}/image-design")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UploadImageDesign(int id, IFormFile file, CancellationToken ct)
+    {
+        var entity = await db.Embroideries.FirstOrDefaultAsync(e => e.EmbroideryId == id, ct);
+
+        if (entity is null)
+            return NotFound(new { message = $"Bordado con ID {id} no encontrado." });
+
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms, ct);
+        entity.ImageDesign = ms.ToArray();
 
         await db.SaveChangesAsync(ct);
 

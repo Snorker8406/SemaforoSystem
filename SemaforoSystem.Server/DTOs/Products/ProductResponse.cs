@@ -49,3 +49,14 @@ public class VariantSystemInfo
     public int ProductVariantId { get; set; }
     public string Name { get; set; } = string.Empty;
 }
+
+/// <summary>
+/// School info with its school level, returned by the /schools sub-resource.
+/// </summary>
+public class ProductSchoolInfo
+{
+    public int SchoolId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public int SchoolLevelId { get; set; }
+    public string SchoolLevelName { get; set; } = string.Empty;
+}

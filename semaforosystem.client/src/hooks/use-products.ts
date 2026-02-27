@@ -16,6 +16,7 @@ import {
   deleteProduct,
   getBrands,
   getCategories,
+  getProductSchools,
   getProductPrices,
   createProductPrice,
   updateProductPrice,
@@ -34,6 +35,7 @@ export const productKeys = {
   brands: () => ['product-brands'] as const,
   categories: () => ['product-categories'] as const,
   prices: (productId: number) => [...productKeys.all, 'prices', productId] as const,
+  schools: (productId: number) => [...productKeys.all, 'schools', productId] as const,
 }
 
 // ── Queries ──────────────────────────────────────────────
@@ -71,6 +73,16 @@ export function useCategories() {
     queryKey: productKeys.categories(),
     queryFn: getCategories,
     staleTime: 10 * 60 * 1000, // 10 min
+  })
+}
+
+/** Schools associated with a product */
+export function useProductSchools(productId: number | null | undefined) {
+  return useQuery({
+    queryKey: productKeys.schools(productId!),
+    queryFn: () => getProductSchools(productId!),
+    enabled: productId != null,
+    staleTime: 5 * 60 * 1000, // 5 min
   })
 }
 
