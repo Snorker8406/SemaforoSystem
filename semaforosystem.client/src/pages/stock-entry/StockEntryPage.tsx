@@ -100,6 +100,8 @@ interface ProductEntryState {
   variantChecks: number[]
   quantities: Record<string, string>
   embroideryChecked: boolean
+  embroideryMode: 'escolar' | 'todos'
+  embroiderySearch: string
   selectedSchoolLevelName: string | null
   selectedSchoolId: number | null
   selectedEmbroideryIds: number[]
@@ -116,11 +118,11 @@ function ProductTabContent({
   entryState: ProductEntryState
   onEntryStateChange: (state: ProductEntryState) => void
 }) {
-  const { sizesChecked, variantChecks, quantities, embroideryChecked, selectedSchoolLevelName, selectedSchoolId, selectedEmbroideryIds } = entryState
+  const { sizesChecked, variantChecks, quantities, embroideryChecked, embroideryMode, embroiderySearch, selectedSchoolLevelName, selectedSchoolId, selectedEmbroideryIds } = entryState
 
-  // Fetch schools for this product (only when embroidery is checked)
+  // Fetch schools for this product (only when embroidery is checked + escolar mode)
   const { data: schools = [], isLoading: schoolsLoading } = useProductSchools(
-    embroideryChecked ? product.productId : null,
+    embroideryChecked && embroideryMode === 'escolar' ? product.productId : null,
   )
 
   // Derive unique school levels from schools data
@@ -152,8 +154,8 @@ function ProductTabContent({
 
   // Sync auto-selections back to state
   // (We do this in a callback effect-like manner to avoid stale state)
-  const needsLevelSync = embroideryChecked && !schoolsLoading && schoolLevels.length === 1 && selectedSchoolLevelName !== schoolLevels[0]
-  const needsSchoolSync = embroideryChecked && !schoolsLoading && schoolsForLevel.length === 1 && selectedSchoolId !== schoolsForLevel[0].schoolId
+  const needsLevelSync = embroideryChecked && embroideryMode === 'escolar' && !schoolsLoading && schoolLevels.length === 1 && selectedSchoolLevelName !== schoolLevels[0]
+  const needsSchoolSync = embroideryChecked && embroideryMode === 'escolar' && !schoolsLoading && schoolsForLevel.length === 1 && selectedSchoolId !== schoolsForLevel[0].schoolId
 
   if (needsLevelSync || needsSchoolSync) {
     const updates: Partial<ProductEntryState> = {}
@@ -162,13 +164,20 @@ function ProductTabContent({
     onEntryStateChange({ ...entryState, ...updates })
   }
 
-  // Fetch embroideries filtered by selected school
+  // Fetch embroideries — "escolar" mode: by school, "todos" mode: by name search
   const { data: embroideriesData, isLoading: embroideriesLoading } = useEmbroideries(
-    effectiveSchoolId != null
+    embroideryChecked && embroideryMode === 'escolar' && effectiveSchoolId != null
       ? { schoolId: effectiveSchoolId, pageSize: 100, sortBy: 'name' }
-      : { schoolId: -1 }, // impossible ID → won't match anything
+      : embroideryChecked && embroideryMode === 'todos' && embroiderySearch.trim().length >= 2
+        ? { search: embroiderySearch.trim(), pageSize: 100, sortBy: 'name' }
+        : { schoolId: -1 }, // impossible ID → won't match anything
   )
-  const embroideries = effectiveSchoolId != null ? (embroideriesData?.items ?? []) : []
+  const embroideries =
+    embroideryChecked &&
+    ((embroideryMode === 'escolar' && effectiveSchoolId != null) ||
+     (embroideryMode === 'todos' && embroiderySearch.trim().length >= 2))
+      ? (embroideriesData?.items ?? [])
+      : []
 
   // Fetch sizes for this product's size system
   const { data: sizes = [] } = useSizesBySystem(product.sizeSystemId)
@@ -297,121 +306,210 @@ function ProductTabContent({
 
       <CardContent className='space-y-4'>
         {/* ── Embroidery + School selection ── */}
-        {product.schoolCount > 0 && (
-          <div className='space-y-3'>
-            <div className='flex items-center space-x-2'>
-              <Checkbox
-                id={`embroidery-${product.productId}`}
-                checked={embroideryChecked}
-                onCheckedChange={(checked) =>
-                  onEntryStateChange({
-                    ...entryState,
-                    embroideryChecked: checked === true,
-                    // Reset selects when unchecking
-                    ...(!checked && { selectedSchoolLevelName: null, selectedSchoolId: null, selectedEmbroideryIds: [] }),
-                  })
-                }
-              />
-              <Label htmlFor={`embroidery-${product.productId}`} className='text-sm font-normal'>
-                Bordado
-              </Label>
-            </div>
+        <div className='space-y-3'>
+          <div className='flex items-center gap-3'>
+            <Checkbox
+              id={`embroidery-${product.productId}`}
+              checked={embroideryChecked}
+              onCheckedChange={(checked) =>
+                onEntryStateChange({
+                  ...entryState,
+                  embroideryChecked: checked === true,
+                  // Reset selects when unchecking
+                  ...(!checked && { selectedSchoolLevelName: null, selectedSchoolId: null, selectedEmbroideryIds: [], embroiderySearch: '' }),
+                })
+              }
+            />
+            <Label htmlFor={`embroidery-${product.productId}`} className='text-sm font-normal'>
+              Bordado
+            </Label>
 
             {embroideryChecked && (
-              <div className='ml-6 space-y-3'>
-                {schoolsLoading ? (
-                  <div className='space-y-2'>
-                    <Skeleton className='h-9 w-full max-w-xs' />
-                    <Skeleton className='h-9 w-full max-w-xs' />
-                  </div>
-                ) : schools.length > 0 ? (
-                  <div className='grid grid-cols-2 gap-3 max-w-lg'>
-                    {/* School Level select */}
-                    <div className='space-y-1.5'>
-                      <Label className='text-xs text-muted-foreground'>Nivel Escolar</Label>
-                      {levelReadOnly ? (
-                        <Input
-                          value={effectiveLevelName ?? ''}
-                          readOnly
-                          className='h-9 text-sm bg-muted'
-                        />
-                      ) : (
-                        <Select
-                          value={effectiveLevelName ?? ''}
-                          onValueChange={(v) =>
-                            onEntryStateChange({
-                              ...entryState,
-                              selectedSchoolLevelName: v || null,
-                              selectedSchoolId: null, // reset school when level changes
-                              selectedEmbroideryIds: [], // reset embroideries when level changes
-                            })
-                          }
-                        >
-                          <SelectTrigger className='h-9 text-sm'>
-                            <SelectValue placeholder='Seleccionar nivel' />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {schoolLevels.map((lvl) => (
-                              <SelectItem key={lvl} value={lvl}>
-                                {lvl}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    </div>
+              <div className='flex items-center rounded-md border bg-muted/40 p-0.5 ml-2'>
+                <button
+                  type='button'
+                  className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                    embroideryMode === 'escolar'
+                      ? 'bg-background shadow-sm text-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  onClick={() => {
+                    if (embroideryMode !== 'escolar') {
+                      onEntryStateChange({
+                        ...entryState,
+                        embroideryMode: 'escolar',
+                        embroiderySearch: '',
+                        selectedEmbroideryIds: [],
+                      })
+                    }
+                  }}
+                  disabled={product.schoolCount === 0}
+                >
+                  Escolar
+                </button>
+                <button
+                  type='button'
+                  className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                    embroideryMode === 'todos'
+                      ? 'bg-background shadow-sm text-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  onClick={() => {
+                    if (embroideryMode !== 'todos') {
+                      onEntryStateChange({
+                        ...entryState,
+                        embroideryMode: 'todos',
+                        selectedSchoolLevelName: null,
+                        selectedSchoolId: null,
+                        selectedEmbroideryIds: [],
+                      })
+                    }
+                  }}
+                >
+                  Todos
+                </button>
+              </div>
+            )}
+          </div>
 
-                    {/* School select */}
-                    <div className='space-y-1.5'>
-                      <Label className='text-xs text-muted-foreground'>Escuela</Label>
-                      {schoolReadOnly ? (
-                        <Input
-                          value={schoolsForLevel[0]?.name ?? ''}
-                          readOnly
-                          className='h-9 text-sm bg-muted'
-                        />
-                      ) : (
-                        <Select
-                          value={effectiveSchoolId != null ? String(effectiveSchoolId) : ''}
-                          onValueChange={(v) =>
-                            onEntryStateChange({
-                              ...entryState,
-                              selectedSchoolId: v ? Number(v) : null,
-                              selectedEmbroideryIds: [], // reset embroideries when school changes
-                            })
-                          }
-                          disabled={!effectiveLevelName}
-                        >
-                          <SelectTrigger className='h-9 text-sm'>
-                            <SelectValue placeholder='Seleccionar escuela' />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {schoolsForLevel.map((s) => (
-                              <SelectItem key={s.schoolId} value={String(s.schoolId)}>
-                                {s.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
+          {embroideryChecked && (
+            <div className='ml-6 space-y-3'>
+              {/* ── Escolar mode: cascading selects ── */}
+              {embroideryMode === 'escolar' && (
+                <>
+                  {schoolsLoading ? (
+                    <div className='space-y-2'>
+                      <Skeleton className='h-9 w-full max-w-xs' />
+                      <Skeleton className='h-9 w-full max-w-xs' />
                     </div>
-                  </div>
-                ) : (
-                  <p className='text-muted-foreground text-xs'>Este producto no tiene escuelas asignadas.</p>
-                )}
+                  ) : schools.length > 0 ? (
+                    <div className='grid grid-cols-2 gap-3 max-w-lg'>
+                      {/* School Level select */}
+                      <div className='space-y-1.5'>
+                        <Label className='text-xs text-muted-foreground'>Nivel Escolar</Label>
+                        {levelReadOnly ? (
+                          <Input
+                            value={effectiveLevelName ?? ''}
+                            readOnly
+                            className='h-9 text-sm bg-muted'
+                          />
+                        ) : (
+                          <Select
+                            value={effectiveLevelName ?? ''}
+                            onValueChange={(v) =>
+                              onEntryStateChange({
+                                ...entryState,
+                                selectedSchoolLevelName: v || null,
+                                selectedSchoolId: null,
+                                selectedEmbroideryIds: [],
+                              })
+                            }
+                          >
+                            <SelectTrigger className='h-9 text-sm'>
+                              <SelectValue placeholder='Seleccionar nivel' />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {schoolLevels.map((lvl) => (
+                                <SelectItem key={lvl} value={lvl}>
+                                  {lvl}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
 
-                {/* ── Embroideries list ── */}
-                {effectiveSchoolId != null && (
-                  <div className='mt-3'>
-                    <Separator className='mb-3' />
-                    <div className='flex items-center gap-2'>
-                      <Label className='text-sm font-semibold'>Ponchados</Label>
-                      {selectedEmbroideryIds.length > 0 && (
-                        <Badge variant='secondary' className='text-[10px] px-1.5 py-0'>
-                          {selectedEmbroideryIds.length} seleccionado{selectedEmbroideryIds.length > 1 ? 's' : ''}
-                        </Badge>
-                      )}
+                      {/* School select */}
+                      <div className='space-y-1.5'>
+                        <Label className='text-xs text-muted-foreground'>Escuela</Label>
+                        {schoolReadOnly ? (
+                          <Input
+                            value={schoolsForLevel[0]?.name ?? ''}
+                            readOnly
+                            className='h-9 text-sm bg-muted'
+                          />
+                        ) : (
+                          <Select
+                            value={effectiveSchoolId != null ? String(effectiveSchoolId) : ''}
+                            onValueChange={(v) =>
+                              onEntryStateChange({
+                                ...entryState,
+                                selectedSchoolId: v ? Number(v) : null,
+                                selectedEmbroideryIds: [],
+                              })
+                            }
+                            disabled={!effectiveLevelName}
+                          >
+                            <SelectTrigger className='h-9 text-sm'>
+                              <SelectValue placeholder='Seleccionar escuela' />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {schoolsForLevel.map((s) => (
+                                <SelectItem key={s.schoolId} value={String(s.schoolId)}>
+                                  {s.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
                     </div>
+                  ) : (
+                    <p className='text-muted-foreground text-xs'>Este producto no tiene escuelas asignadas.</p>
+                  )}
+                </>
+              )}
+
+              {/* ── Todos mode: text search ── */}
+              {embroideryMode === 'todos' && (
+                <div className='max-w-lg'>
+                  <Label className='text-xs text-muted-foreground'>Buscar ponchado por nombre</Label>
+                  <div className='relative mt-1.5'>
+                    <SearchIcon className='absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground' />
+                    <Input
+                      value={embroiderySearch}
+                      onChange={(e) =>
+                        onEntryStateChange({
+                          ...entryState,
+                          embroiderySearch: e.target.value,
+                          selectedEmbroideryIds: [],
+                        })
+                      }
+                      placeholder='Escribe al menos 2 caracteres...'
+                      className='h-9 text-sm pl-8'
+                    />
+                    {embroiderySearch && (
+                      <button
+                        type='button'
+                        className='absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground'
+                        onClick={() =>
+                          onEntryStateChange({
+                            ...entryState,
+                            embroiderySearch: '',
+                            selectedEmbroideryIds: [],
+                          })
+                        }
+                      >
+                        <XIcon className='size-3.5' />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Embroideries list (shared between both modes) ── */}
+              {((embroideryMode === 'escolar' && effectiveSchoolId != null) ||
+                (embroideryMode === 'todos' && embroiderySearch.trim().length >= 2)) && (
+                <div className='mt-3'>
+                  <Separator className='mb-3' />
+                  <div className='flex items-center gap-2'>
+                    <Label className='text-sm font-semibold'>Ponchados</Label>
+                    {selectedEmbroideryIds.length > 0 && (
+                      <Badge variant='secondary' className='text-[10px] px-1.5 py-0'>
+                        {selectedEmbroideryIds.length} seleccionado{selectedEmbroideryIds.length > 1 ? 's' : ''}
+                      </Badge>
+                    )}
+                  </div>
                     {embroideriesLoading ? (
                       <div className='mt-2 space-y-1.5'>
                         {Array.from({ length: 3 }).map((_, i) => (
@@ -484,15 +582,18 @@ function ProductTabContent({
                           )
                         })}
                       </div>
-                    ) : (
-                      <p className='text-muted-foreground text-xs mt-2'>No hay ponchados para esta escuela.</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+                  ) : (
+                    <p className='text-muted-foreground text-xs mt-2'>
+                      {embroideryMode === 'escolar'
+                        ? 'No hay ponchados para esta escuela.'
+                        : 'No se encontraron ponchados.'}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {hasDimensions ? (
           <>
@@ -658,13 +759,18 @@ export default function StockEntryPage() {
         })),
       }
       // Initialize entry state for this product
+      const firstVariantCheck = newSelected.sizeSystemId == null && newSelected.variantSystems.length > 0
+        ? [newSelected.variantSystems[0].productVariantId]
+        : []
       setEntryStates((prev) => ({
         ...prev,
         [product.productId]: {
-          sizesChecked: false,
-          variantChecks: [],
+          sizesChecked: newSelected.sizeSystemId != null,
+          variantChecks: firstVariantCheck,
           quantities: {},
           embroideryChecked: false,
+          embroideryMode: newSelected.schoolCount > 0 ? 'escolar' : 'todos',
+          embroiderySearch: '',
           selectedSchoolLevelName: null,
           selectedSchoolId: null,
           selectedEmbroideryIds: [],
@@ -886,7 +992,7 @@ export default function StockEntryPage() {
                 >
                   <ProductTabContent
                     product={sp}
-                    entryState={entryStates[sp.productId] ?? { sizesChecked: false, variantChecks: [], quantities: {}, embroideryChecked: false, selectedSchoolLevelName: null, selectedSchoolId: null, selectedEmbroideryIds: [] }}
+                    entryState={entryStates[sp.productId] ?? { sizesChecked: sp.sizeSystemId != null, variantChecks: sp.sizeSystemId == null && sp.variantSystems.length > 0 ? [sp.variantSystems[0].productVariantId] : [], quantities: {}, embroideryChecked: false, embroideryMode: sp.schoolCount > 0 ? 'escolar' : 'todos', embroiderySearch: '', selectedSchoolLevelName: null, selectedSchoolId: null, selectedEmbroideryIds: [] }}
                     onEntryStateChange={(state) => handleEntryStateChange(sp.productId, state)}
                   />
                 </TabsContent>
