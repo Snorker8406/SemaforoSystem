@@ -689,6 +689,17 @@ function ProductTabContent({
             </div>
           </>
         )}
+
+        {/* ── Action buttons ── */}
+        <Separator />
+        <div className='flex items-center gap-3'>
+          <Button size='sm'>
+            Agregar Existencias
+          </Button>
+          <Button variant='secondary' size='sm'>
+            Cancelar
+          </Button>
+        </div>
       </CardContent>
     </Card>
   )

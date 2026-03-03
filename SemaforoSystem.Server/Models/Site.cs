@@ -18,7 +18,7 @@ public partial class Site
     public string Name { get; set; } = null!;
 
     [Column("logo")]
-    public byte[] Logo { get; set; } = null!;
+    public byte[]? Logo { get; set; }
 
     [Column("type")]
     [StringLength(50)]
