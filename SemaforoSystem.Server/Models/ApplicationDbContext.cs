@@ -59,6 +59,18 @@ public partial class ApplicationDbContext : DbContext
 
     public virtual DbSet<File> Files { get; set; }
 
+    public virtual DbSet<InventoryBalance> InventoryBalances { get; set; }
+
+    public virtual DbSet<InventoryItemDefinition> InventoryItemDefinitions { get; set; }
+
+    public virtual DbSet<InventoryReservation> InventoryReservations { get; set; }
+
+    public virtual DbSet<InventorySerialItem> InventorySerialItems { get; set; }
+
+    public virtual DbSet<InventoryTransaction> InventoryTransactions { get; set; }
+
+    public virtual DbSet<InventoryTransactionLine> InventoryTransactionLines { get; set; }
+
     public virtual DbSet<Product> Products { get; set; }
 
     public virtual DbSet<ProductCombo> ProductCombos { get; set; }
@@ -301,6 +313,149 @@ public partial class ApplicationDbContext : DbContext
             entity.HasOne(d => d.Provider).WithMany(p => p.Files).HasConstraintName("files_provider_id_fkey");
 
             entity.HasOne(d => d.School).WithMany(p => p.Files).HasConstraintName("files_school_id_fkey");
+        });
+
+        modelBuilder.Entity<InventoryBalance>(entity =>
+        {
+            entity.HasKey(e => new { e.SiteId, e.InventoryItemDefinitionId }).HasName("inventory_balances_pkey");
+
+            entity.HasOne(d => d.InventoryItemDefinition).WithMany(p => p.InventoryBalances)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("inventory_balances_inventory_item_definition_id_fkey");
+
+            entity.HasOne(d => d.Site).WithMany(p => p.InventoryBalances)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("inventory_balances_site_id_fkey");
+        });
+
+        modelBuilder.Entity<InventoryItemDefinition>(entity =>
+        {
+            entity.HasKey(e => e.InventoryItemDefinitionId).HasName("inventory_item_definitions_pkey");
+
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+
+            entity.HasOne(d => d.Product).WithMany(p => p.InventoryItemDefinitions)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("inventory_item_definitions_product_id_fkey");
+
+            entity.HasOne(d => d.Size).WithMany(p => p.InventoryItemDefinitions).HasConstraintName("inventory_item_definitions_size_id_fkey");
+
+            entity.HasMany(d => d.ProductVariants).WithMany(p => p.InventoryItemDefinitions)
+                .UsingEntity<Dictionary<string, object>>(
+                    "InventoryItemDefinitionVariant",
+                    r => r.HasOne<ProductVariant>().WithMany()
+                        .HasForeignKey("ProductVariantId")
+                        .OnDelete(DeleteBehavior.ClientSetNull)
+                        .HasConstraintName("inventory_item_definition_variants_product_variant_id_fkey"),
+                    l => l.HasOne<InventoryItemDefinition>().WithMany()
+                        .HasForeignKey("InventoryItemDefinitionId")
+                        .OnDelete(DeleteBehavior.ClientSetNull)
+                        .HasConstraintName("inventory_item_definition_variants_inventory_item_definition_va"),
+                    j =>
+                    {
+                        j.HasKey("InventoryItemDefinitionId", "ProductVariantId").HasName("inventory_item_definition_variants_pkey");
+                        j.ToTable("inventory_item_definition_variants");
+                        j.IndexerProperty<int>("InventoryItemDefinitionId").HasColumnName("inventory_item_definition_id");
+                        j.IndexerProperty<int>("ProductVariantId").HasColumnName("product_variant_id");
+                    });
+        });
+
+        modelBuilder.Entity<InventoryReservation>(entity =>
+        {
+            entity.HasKey(e => e.InventoryReservationId).HasName("inventory_reservations_pkey");
+
+            entity.HasOne(d => d.InventoryItemDefinition).WithMany(p => p.InventoryReservations)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("inventory_reservations_inventory_item_definition_id");
+
+            entity.HasOne(d => d.Site).WithMany(p => p.InventoryReservations)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("inventory_reservations_site_id_fkey");
+
+            entity.HasMany(d => d.InventorySerialItems).WithMany(p => p.InventoryReservations)
+                .UsingEntity<Dictionary<string, object>>(
+                    "InventoryReservationSerialItem",
+                    r => r.HasOne<InventorySerialItem>().WithMany()
+                        .HasForeignKey("InventorySerialItemId")
+                        .OnDelete(DeleteBehavior.ClientSetNull)
+                        .HasConstraintName("inventory_reservation_serial_items_inventory_serial_item_id_fke"),
+                    l => l.HasOne<InventoryReservation>().WithMany()
+                        .HasForeignKey("InventoryReservationId")
+                        .OnDelete(DeleteBehavior.ClientSetNull)
+                        .HasConstraintName("inventory_reservation_serial_items_inventory_reservation_id_fke"),
+                    j =>
+                    {
+                        j.HasKey("InventoryReservationId", "InventorySerialItemId").HasName("inventory_reservation_serial_items_pkey");
+                        j.ToTable("inventory_reservation_serial_items");
+                        j.IndexerProperty<long>("InventoryReservationId").HasColumnName("inventory_reservation_id");
+                        j.IndexerProperty<long>("InventorySerialItemId").HasColumnName("inventory_serial_item_id");
+                    });
+        });
+
+        modelBuilder.Entity<InventorySerialItem>(entity =>
+        {
+            entity.HasKey(e => e.InventorySerialItemId).HasName("inventory_serial_items_pkey");
+
+            entity.Property(e => e.Status).HasDefaultValue((short)1);
+
+            entity.HasOne(d => d.CurrentSite).WithMany(p => p.InventorySerialItems)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("inventory_serial_items_current_site_id_fkey");
+
+            entity.HasOne(d => d.InventoryItemDefinition).WithMany(p => p.InventorySerialItems)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("inventory_serial_items_inventory_item_definition_id_fkey");
+        });
+
+        modelBuilder.Entity<InventoryTransaction>(entity =>
+        {
+            entity.HasKey(e => e.InventoryTransactionId).HasName("inventory_transactions_pkey");
+
+            entity.Property(e => e.InventoryTransactionId).ValueGeneratedNever();
+        });
+
+        modelBuilder.Entity<InventoryTransactionLine>(entity =>
+        {
+            entity.HasKey(e => e.InventoryTransactionLineId).HasName("inventory_transaction_lines_pkey");
+
+            entity.HasOne(d => d.InventoryItemDefinition).WithMany(p => p.InventoryTransactionLines)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("inventory_transaction_lines_inventory_item_definition_id_fkey");
+
+            entity.HasOne(d => d.InventoryTransaction).WithMany(p => p.InventoryTransactionLines)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("inventory_transaction_lines_inventory_transaction_id_fkey");
+
+            entity.HasOne(d => d.Site).WithMany(p => p.InventoryTransactionLineSites)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("inventory_transaction_lines_site_id_fkey");
+
+            entity.HasOne(d => d.SourceSite).WithMany(p => p.InventoryTransactionLineSourceSites).HasConstraintName("inventory_transaction_lines_source_site_id_fkey");
+
+            entity.HasOne(d => d.TargetSite).WithMany(p => p.InventoryTransactionLineTargetSites).HasConstraintName("nventory_transaction_lines_target_site_id_fkey");
+
+            entity.HasMany(d => d.InventorySerialItems).WithMany(p => p.InventoryTransactionLines)
+                .UsingEntity<Dictionary<string, object>>(
+                    "InventorySerialItemMove",
+                    r => r.HasOne<InventorySerialItem>().WithMany()
+                        .HasForeignKey("InventorySerialItemId")
+                        .OnDelete(DeleteBehavior.ClientSetNull)
+                        .HasConstraintName("inventory_serial_item_moves_inventory_serial_item_id_fkey"),
+                    l => l.HasOne<InventoryTransactionLine>().WithMany()
+                        .HasForeignKey("InventoryTransactionLineId")
+                        .OnDelete(DeleteBehavior.ClientSetNull)
+                        .HasConstraintName("inventory_serial_item_moves_inventory_transaction_line_id_fkey"),
+                    j =>
+                    {
+                        j.HasKey("InventoryTransactionLineId", "InventorySerialItemId").HasName("inventory_serial_item_moves_pkey");
+                        j.ToTable("inventory_serial_item_moves");
+                        j.IndexerProperty<long>("InventoryTransactionLineId")
+                            .ValueGeneratedOnAdd()
+                            .HasColumnName("inventory_transaction_line_id");
+                        j.IndexerProperty<long>("InventorySerialItemId")
+                            .ValueGeneratedOnAdd()
+                            .HasColumnName("inventory_serial_item_id");
+                    });
         });
 
         modelBuilder.Entity<Product>(entity =>

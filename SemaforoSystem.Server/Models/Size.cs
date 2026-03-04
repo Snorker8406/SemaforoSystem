@@ -28,6 +28,9 @@ public partial class Size
     public int? SizeOrder { get; set; }
 
     [InverseProperty("Size")]
+    public virtual ICollection<InventoryItemDefinition> InventoryItemDefinitions { get; set; } = new List<InventoryItemDefinition>();
+
+    [InverseProperty("Size")]
     public virtual ICollection<ProductPrice> ProductPrices { get; set; } = new List<ProductPrice>();
 
     [InverseProperty("Size")]

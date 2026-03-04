@@ -51,6 +51,24 @@ public partial class Site
     public virtual ICollection<Account> Accounts { get; set; } = new List<Account>();
 
     [InverseProperty("Site")]
+    public virtual ICollection<InventoryBalance> InventoryBalances { get; set; } = new List<InventoryBalance>();
+
+    [InverseProperty("Site")]
+    public virtual ICollection<InventoryReservation> InventoryReservations { get; set; } = new List<InventoryReservation>();
+
+    [InverseProperty("CurrentSite")]
+    public virtual ICollection<InventorySerialItem> InventorySerialItems { get; set; } = new List<InventorySerialItem>();
+
+    [InverseProperty("Site")]
+    public virtual ICollection<InventoryTransactionLine> InventoryTransactionLineSites { get; set; } = new List<InventoryTransactionLine>();
+
+    [InverseProperty("SourceSite")]
+    public virtual ICollection<InventoryTransactionLine> InventoryTransactionLineSourceSites { get; set; } = new List<InventoryTransactionLine>();
+
+    [InverseProperty("TargetSite")]
+    public virtual ICollection<InventoryTransactionLine> InventoryTransactionLineTargetSites { get; set; } = new List<InventoryTransactionLine>();
+
+    [InverseProperty("Site")]
     public virtual ICollection<Sale> Sales { get; set; } = new List<Sale>();
 
     [InverseProperty("Site")]
