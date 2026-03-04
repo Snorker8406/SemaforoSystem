@@ -585,6 +585,8 @@ public partial class ApplicationDbContext : DbContext
             entity.HasOne(d => d.Product).WithMany(p => p.ProductPictures)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("product_pictures_product_id_fkey");
+
+            entity.HasOne(d => d.Variant).WithMany(p => p.ProductPictures).HasConstraintName("product_pictures_variant_id_fkey");
         });
 
         modelBuilder.Entity<ProductPrice>(entity =>

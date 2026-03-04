@@ -39,6 +39,7 @@ public class VariantResponse
     public string? Description { get; set; }
     public int ProductVariantSystemId { get; set; }
     public string? ProductVariantSystemName { get; set; }
+    public bool HasPicture { get; set; }
 }
 
 public class CreateVariantRequest

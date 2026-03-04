@@ -756,6 +756,199 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
 
         return File(pictureBytes, "image/png");
     }
+
+    /// <summary>
+    /// Returns the picture for a specific variant of a product.
+    /// </summary>
+    [HttpGet("{productId:int}/variants/{variantId:int}/picture")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetVariantPicture(int productId, int variantId, CancellationToken ct)
+    {
+        var pictureBytes = await db.ProductPictures
+            .AsNoTracking()
+            .Where(pp => pp.ProductId == productId && pp.VariantId == variantId)
+            .OrderBy(pp => pp.ProductPictureId)
+            .Select(pp => pp.Picture)
+            .FirstOrDefaultAsync(ct);
+
+        if (pictureBytes is null or { Length: 0 })
+            return NotFound(new { message = "No se encontró imagen para esta variante del producto." });
+
+        return File(pictureBytes, "image/png");
+    }
+
+    /// <summary>
+    /// Uploads or replaces the picture for a specific variant of a product.
+    /// Creates the record if it doesn't exist (upsert).
+    /// </summary>
+    [HttpPut("{productId:int}/variants/{variantId:int}/picture")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadVariantPicture(
+        int productId, int variantId,
+        IFormFile file,
+        CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { message = "No se proporcionó un archivo válido." });
+
+        var productExists = await db.Products.AnyAsync(p => p.ProductId == productId, ct);
+        if (!productExists)
+            return NotFound(new { message = $"Producto con ID {productId} no encontrado." });
+
+        var variantExists = await db.ProductVariants.AnyAsync(v => v.ProductVariantId == variantId, ct);
+        if (!variantExists)
+            return NotFound(new { message = $"Variante con ID {variantId} no encontrada." });
+
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms, ct);
+        var bytes = ms.ToArray();
+
+        var existing = await db.ProductPictures
+            .FirstOrDefaultAsync(pp => pp.ProductId == productId && pp.VariantId == variantId, ct);
+
+        if (existing is not null)
+        {
+            existing.Picture = bytes;
+        }
+        else
+        {
+            db.ProductPictures.Add(new ProductPicture
+            {
+                ProductId = productId,
+                VariantId = variantId,
+                Picture = bytes,
+                CreateDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            });
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        return Ok(new { message = "Imagen de variante actualizada correctamente." });
+    }
+
+    /// <summary>
+    /// Deletes the picture for a specific variant of a product.
+    /// </summary>
+    [HttpDelete("{productId:int}/variants/{variantId:int}/picture")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteVariantPicture(int productId, int variantId, CancellationToken ct)
+    {
+        var picture = await db.ProductPictures
+            .FirstOrDefaultAsync(pp => pp.ProductId == productId && pp.VariantId == variantId, ct);
+
+        if (picture is null)
+            return NotFound(new { message = "No se encontró imagen para esta variante del producto." });
+
+        db.ProductPictures.Remove(picture);
+        await db.SaveChangesAsync(ct);
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Uploads or replaces the main picture for a product (no variant).
+    /// Creates the record if it doesn't exist (upsert), and sets it as the product's main picture.
+    /// </summary>
+    [HttpPut("{productId:int}/picture")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadProductPicture(
+        int productId,
+        IFormFile file,
+        CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { message = "No se proporcionó un archivo válido." });
+
+        var product = await db.Products
+            .FirstOrDefaultAsync(p => p.ProductId == productId, ct);
+
+        if (product is null)
+            return NotFound(new { message = $"Producto con ID {productId} no encontrado." });
+
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms, ct);
+        var bytes = ms.ToArray();
+
+        // Look for existing main picture (no variant)
+        ProductPicture? existing = null;
+
+        if (product.ProductPictureId is not null)
+        {
+            existing = await db.ProductPictures
+                .FirstOrDefaultAsync(pp => pp.ProductPictureId == product.ProductPictureId, ct);
+        }
+
+        existing ??= await db.ProductPictures
+            .FirstOrDefaultAsync(pp => pp.ProductId == productId && pp.VariantId == null, ct);
+
+        if (existing is not null)
+        {
+            existing.Picture = bytes;
+            product.ProductPictureId = existing.ProductPictureId;
+        }
+        else
+        {
+            var newPic = new ProductPicture
+            {
+                ProductId = productId,
+                Picture = bytes,
+                CreateDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            };
+            db.ProductPictures.Add(newPic);
+            await db.SaveChangesAsync(ct);
+
+            product.ProductPictureId = newPic.ProductPictureId;
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        return Ok(new { message = "Imagen de producto actualizada correctamente." });
+    }
+
+    /// <summary>
+    /// Deletes the main picture for a product.
+    /// </summary>
+    [HttpDelete("{productId:int}/picture")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteProductPicture(int productId, CancellationToken ct)
+    {
+        var product = await db.Products
+            .FirstOrDefaultAsync(p => p.ProductId == productId, ct);
+
+        if (product is null)
+            return NotFound(new { message = $"Producto con ID {productId} no encontrado." });
+
+        // Find the main picture
+        ProductPicture? picture = null;
+
+        if (product.ProductPictureId is not null)
+        {
+            picture = await db.ProductPictures
+                .FirstOrDefaultAsync(pp => pp.ProductPictureId == product.ProductPictureId, ct);
+        }
+
+        picture ??= await db.ProductPictures
+            .FirstOrDefaultAsync(pp => pp.ProductId == productId && pp.VariantId == null, ct);
+
+        if (picture is null)
+            return NotFound(new { message = "Este producto no tiene imagen principal." });
+
+        product.ProductPictureId = null;
+        db.ProductPictures.Remove(picture);
+        await db.SaveChangesAsync(ct);
+
+        return NoContent();
+    }
 }
 
 public class BrandLookup

@@ -33,6 +33,7 @@ public class VariantSystemsController(ApplicationDbContext db) : ControllerBase
                 Description = v.Description,
                 ProductVariantSystemId = vs.ProductVariantId,
                 ProductVariantSystemName = vs.Name,
+                HasPicture = v.ProductPictures.Count > 0,
             }).ToList(),
     };
 
@@ -43,6 +44,7 @@ public class VariantSystemsController(ApplicationDbContext db) : ControllerBase
         Description = v.Description,
         ProductVariantSystemId = v.ProductVariantSystemId,
         ProductVariantSystemName = v.ProductVariantSystem?.Name,
+        HasPicture = v.ProductPictures.Count > 0,
     };
 
     // ═══════════════════════════════════════════════════════════════════
@@ -60,6 +62,7 @@ public class VariantSystemsController(ApplicationDbContext db) : ControllerBase
     {
         var q = db.ProductVariantSystems
             .Include(vs => vs.ProductVariants)
+                .ThenInclude(v => v.ProductPictures)
             .Include(vs => vs.Products)
             .AsNoTracking()
             .AsQueryable();
@@ -133,6 +136,7 @@ public class VariantSystemsController(ApplicationDbContext db) : ControllerBase
     {
         var vs = await db.ProductVariantSystems
             .Include(s => s.ProductVariants)
+                .ThenInclude(v => v.ProductPictures)
             .Include(s => s.Products)
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.ProductVariantId == id, ct);
@@ -258,6 +262,7 @@ public class VariantSystemsController(ApplicationDbContext db) : ControllerBase
     {
         var q = db.ProductVariants
             .Include(v => v.ProductVariantSystem)
+            .Include(v => v.ProductPictures)
             .AsNoTracking()
             .AsQueryable();
 
@@ -315,6 +320,7 @@ public class VariantSystemsController(ApplicationDbContext db) : ControllerBase
 
         var variants = await db.ProductVariants
             .Include(v => v.ProductVariantSystem)
+            .Include(v => v.ProductPictures)
             .AsNoTracking()
             .Where(v => v.ProductVariantSystemId == systemId)
             .OrderBy(v => v.ProductVariantId)
@@ -334,6 +340,7 @@ public class VariantSystemsController(ApplicationDbContext db) : ControllerBase
     {
         var variant = await db.ProductVariants
             .Include(v => v.ProductVariantSystem)
+            .Include(v => v.ProductPictures)
             .AsNoTracking()
             .FirstOrDefaultAsync(v => v.ProductVariantId == id, ct);
 
@@ -444,6 +451,90 @@ public class VariantSystemsController(ApplicationDbContext db) : ControllerBase
             return NotFound(new { message = $"Variante con ID {id} no encontrada." });
 
         db.ProductVariants.Remove(entity);
+        await db.SaveChangesAsync(ct);
+
+        return NoContent();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Variant Picture
+    // ═══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Returns the picture associated with a specific variant.
+    /// </summary>
+    [HttpGet("{variantId:int}/picture")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetVariantPicture(int variantId, CancellationToken ct)
+    {
+        var exists = await db.ProductVariants.AnyAsync(v => v.ProductVariantId == variantId, ct);
+        if (!exists)
+            return NotFound(new { message = $"Variante con ID {variantId} no encontrada." });
+
+        var pictureBytes = await db.ProductPictures
+            .AsNoTracking()
+            .Where(pp => pp.VariantId == variantId)
+            .OrderBy(pp => pp.ProductPictureId)
+            .Select(pp => pp.Picture)
+            .FirstOrDefaultAsync(ct);
+
+        if (pictureBytes is null or { Length: 0 })
+            return NotFound(new { message = "Esta variante no tiene imagen." });
+
+        return File(pictureBytes, "image/png");
+    }
+
+    /// <summary>
+    /// Uploads or replaces the picture for a specific variant.
+    /// Expects a single image file via multipart/form-data.
+    /// Only works if the variant already has a picture (update). For initial upload, use
+    /// PUT /api/products/{productId}/variants/{variantId}/picture.
+    /// </summary>
+    [HttpPut("{variantId:int}/picture")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadVariantPicture(
+        int variantId,
+        IFormFile file,
+        CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { message = "No se proporcionó un archivo válido." });
+
+        var existing = await db.ProductPictures
+            .FirstOrDefaultAsync(pp => pp.VariantId == variantId, ct);
+
+        if (existing is null)
+            return NotFound(new { message = "Esta variante no tiene imagen. Use PUT /api/products/{productId}/variants/{variantId}/picture para crear una." });
+
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms, ct);
+        existing.Picture = ms.ToArray();
+
+        await db.SaveChangesAsync(ct);
+
+        return Ok(new { message = "Imagen de variante actualizada correctamente." });
+    }
+
+    /// <summary>
+    /// Deletes the picture associated with a variant.
+    /// </summary>
+    [HttpDelete("{variantId:int}/picture")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteVariantPicture(int variantId, CancellationToken ct)
+    {
+        var picture = await db.ProductPictures
+            .FirstOrDefaultAsync(pp => pp.VariantId == variantId, ct);
+
+        if (picture is null)
+            return NotFound(new { message = "Esta variante no tiene imagen." });
+
+        db.ProductPictures.Remove(picture);
         await db.SaveChangesAsync(ct);
 
         return NoContent();
