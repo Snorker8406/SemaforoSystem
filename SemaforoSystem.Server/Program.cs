@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using SemaforoSystem.Server.Auth;
 using SemaforoSystem.Server.Models;
+using SemaforoSystem.Server.Services;
 //Scaffold-DbContext "Host=localhost;Database=semaforo;Username=IOTek_Admin;Password=1234" Npgsql.EntityFrameworkCore.PostgreSQL -OutputDir Models -Context ApplicationDbContext -DataAnnotations -Force
 
 var builder = WebApplication.CreateBuilder(args);
@@ -31,6 +32,9 @@ builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseNpgsql(connectionString));
 
 builder.Services.AddIdentityApiEndpoints<ApplicationUser>().AddEntityFrameworkStores<AuthDbContext>();
+
+// Domain services
+builder.Services.AddScoped<InventoryService>();
 
 var app = builder.Build();
 

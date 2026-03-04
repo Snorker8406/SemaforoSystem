@@ -29,17 +29,21 @@ import {
   PackagePlusIcon,
   BarcodeIcon,
   CheckIcon,
+  LoaderIcon,
+  MapPinIcon,
 } from 'lucide-react'
 
 import type { ProductQueryParams, ProductResponse } from '@/services/product-service'
 import { getProductPictureUrl } from '@/services/product-service'
 import type { VariantResponse } from '@/services/variant-service'
 import { getVariantsBySystem } from '@/services/variant-service'
+import type { CreateEntryLineRequest } from '@/services/inventory-service'
 import { useProducts } from '@/hooks/use-products'
 import { useProductSchools } from '@/hooks/use-products'
 import { useEmbroideries } from '@/hooks/use-embroideries'
 import { useSizesBySystem } from '@/hooks/use-sizes'
 import { variantKeys } from '@/hooks/use-variants'
+import { useSites, useCreateEntry } from '@/hooks/use-inventory'
 
 // ── Product Image ────────────────────────────────────────
 
@@ -113,10 +117,16 @@ function ProductTabContent({
   product,
   entryState,
   onEntryStateChange,
+  siteId,
+  onSubmit,
+  isSubmitting,
 }: {
   product: SelectedProduct
   entryState: ProductEntryState
   onEntryStateChange: (state: ProductEntryState) => void
+  siteId: number | null
+  onSubmit: (lines: CreateEntryLineRequest[]) => void
+  isSubmitting: boolean
 }) {
   const { sizesChecked, variantChecks, quantities, embroideryChecked, embroideryMode, embroiderySearch, selectedSchoolLevelName, selectedSchoolId, selectedEmbroideryIds } = entryState
 
@@ -272,7 +282,58 @@ function ProductTabContent({
     })
   }
 
+  // ── Build lines for submission ─────────────────────
+
+  function handleSubmit() {
+    if (!siteId) return
+
+    const lines: CreateEntryLineRequest[] = []
+
+    if (fields.length > 0) {
+      // Dimensional: one line per field with qty > 0
+      for (const field of fields) {
+        const raw = quantities[field.key]
+        const qty = raw ? parseInt(raw, 10) : 0
+        if (qty <= 0) continue
+
+        lines.push({
+          productId: product.productId,
+          sizeId: field.sizeId ?? undefined,
+          variantIds: field.variantId ? [field.variantId] : undefined,
+          isSerialized: product.serialize,
+          quantity: qty,
+        })
+      }
+    } else {
+      // Single quantity (no dimensions)
+      const raw = quantities['single']
+      const qty = raw ? parseInt(raw, 10) : 0
+      if (qty > 0) {
+        lines.push({
+          productId: product.productId,
+          isSerialized: product.serialize,
+          quantity: qty,
+        })
+      }
+    }
+
+    if (lines.length === 0) return
+    onSubmit(lines)
+  }
+
   const hasDimensions = product.sizeSystemId != null || product.variantSystems.length > 0
+
+  // Compute total for submit button
+  const totalQty = useMemo(() => {
+    if (fields.length > 0) {
+      return fields.reduce((sum, f) => {
+        const raw = quantities[f.key]
+        return sum + (raw ? parseInt(raw, 10) || 0 : 0)
+      }, 0)
+    }
+    const raw = quantities['single']
+    return raw ? parseInt(raw, 10) || 0 : 0
+  }, [fields, quantities])
 
   return (
     <Card className='h-full overflow-auto'>
@@ -693,12 +754,26 @@ function ProductTabContent({
         {/* ── Action buttons ── */}
         <Separator />
         <div className='flex items-center gap-3'>
-          <Button size='sm'>
-            Agregar Existencias
+          <Button
+            size='sm'
+            disabled={!siteId || totalQty <= 0 || isSubmitting}
+            onClick={handleSubmit}
+          >
+            {isSubmitting ? (
+              <>
+                <LoaderIcon className='size-3.5 animate-spin' />
+                Procesando…
+              </>
+            ) : (
+              <>
+                <PackagePlusIcon className='size-3.5' />
+                Agregar Existencias{totalQty > 0 ? ` (${totalQty})` : ''}
+              </>
+            )}
           </Button>
-          <Button variant='secondary' size='sm'>
-            Cancelar
-          </Button>
+          {!siteId && (
+            <p className='text-destructive text-xs'>Selecciona un sitio primero.</p>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -721,6 +796,18 @@ export default function StockEntryPage() {
   const totalPages = productsData?.totalPages ?? 0
   const currentPage = productsData?.page ?? 1
   const totalCount = productsData?.totalCount ?? 0
+
+  // ── Site selector state ────────────────────────────
+  const { data: sites = [], isLoading: sitesLoading } = useSites()
+  const [selectedSiteId, setSelectedSiteId] = useState<number | null>(null)
+
+  // Auto-select when only 1 site
+  if (!sitesLoading && sites.length === 1 && selectedSiteId !== sites[0].siteId) {
+    setSelectedSiteId(sites[0].siteId)
+  }
+
+  // ── Entry mutation ─────────────────────────────────
+  const createEntryMutation = useCreateEntry()
 
   // ── Selected products (for tabs) ───────────────────
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([])
@@ -819,6 +906,32 @@ export default function StockEntryPage() {
     [selectedProducts],
   )
 
+  const handleSubmitEntry = useCallback(
+    (productId: number, lines: CreateEntryLineRequest[]) => {
+      if (!selectedSiteId || lines.length === 0) return
+
+      createEntryMutation.mutate(
+        {
+          siteId: selectedSiteId,
+          lines,
+        },
+        {
+          onSuccess: () => {
+            // Reset the quantities for this product on success
+            setEntryStates((prev) => ({
+              ...prev,
+              [productId]: {
+                ...prev[productId],
+                quantities: {},
+              },
+            }))
+          },
+        },
+      )
+    },
+    [selectedSiteId, createEntryMutation],
+  )
+
   // ── Render ─────────────────────────────────────────
 
   return (
@@ -831,12 +944,39 @@ export default function StockEntryPage() {
             Selecciona productos para registrar la entrada de mercancías.
           </p>
         </div>
-        {selectedProducts.length > 0 && (
-          <Badge variant='secondary' className='text-sm gap-1.5 px-3 py-1'>
-            <PackageIcon className='size-3.5' />
-            {selectedProducts.length} producto{selectedProducts.length !== 1 ? 's' : ''} seleccionado{selectedProducts.length !== 1 ? 's' : ''}
-          </Badge>
-        )}
+        <div className='flex items-center gap-3'>
+          {/* Site selector */}
+          <div className='flex items-center gap-2'>
+            <MapPinIcon className='size-4 text-muted-foreground' />
+            {sitesLoading ? (
+              <Skeleton className='h-9 w-40' />
+            ) : sites.length === 1 ? (
+              <Input value={sites[0].name} readOnly className='h-9 w-40 text-sm bg-muted' />
+            ) : (
+              <Select
+                value={selectedSiteId != null ? String(selectedSiteId) : ''}
+                onValueChange={(v) => setSelectedSiteId(v ? Number(v) : null)}
+              >
+                <SelectTrigger className='h-9 w-48 text-sm'>
+                  <SelectValue placeholder='Seleccionar sitio' />
+                </SelectTrigger>
+                <SelectContent>
+                  {sites.map((s) => (
+                    <SelectItem key={s.siteId} value={String(s.siteId)}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+          {selectedProducts.length > 0 && (
+            <Badge variant='secondary' className='text-sm gap-1.5 px-3 py-1'>
+              <PackageIcon className='size-3.5' />
+              {selectedProducts.length} producto{selectedProducts.length !== 1 ? 's' : ''} seleccionado{selectedProducts.length !== 1 ? 's' : ''}
+            </Badge>
+          )}
+        </div>
       </div>
 
       <div className='flex gap-6 h-[calc(100vh-220px)]'>
@@ -1005,6 +1145,9 @@ export default function StockEntryPage() {
                     product={sp}
                     entryState={entryStates[sp.productId] ?? { sizesChecked: sp.sizeSystemId != null, variantChecks: sp.sizeSystemId == null && sp.variantSystems.length > 0 ? [sp.variantSystems[0].productVariantId] : [], quantities: {}, embroideryChecked: false, embroideryMode: sp.schoolCount > 0 ? 'escolar' : 'todos', embroiderySearch: '', selectedSchoolLevelName: null, selectedSchoolId: null, selectedEmbroideryIds: [] }}
                     onEntryStateChange={(state) => handleEntryStateChange(sp.productId, state)}
+                    siteId={selectedSiteId}
+                    onSubmit={(lines) => handleSubmitEntry(sp.productId, lines)}
+                    isSubmitting={createEntryMutation.isPending}
                   />
                 </TabsContent>
               ))}
