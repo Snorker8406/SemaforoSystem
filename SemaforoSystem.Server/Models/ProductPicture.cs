@@ -22,17 +22,10 @@ public partial class ProductPicture
     [Column("create_date")]
     public DateOnly CreateDate { get; set; }
 
-    [Column("variant_id")]
-    public int? VariantId { get; set; }
-
     [ForeignKey("ProductId")]
     [InverseProperty("ProductPictures")]
     public virtual Product Product { get; set; } = null!;
 
     [InverseProperty("ProductPicture")]
     public virtual ICollection<Product> Products { get; set; } = new List<Product>();
-
-    [ForeignKey("VariantId")]
-    [InverseProperty("ProductPictures")]
-    public virtual ProductVariant? Variant { get; set; }
 }

@@ -25,9 +25,6 @@ public partial class ProductVariant
     public string? Description { get; set; }
 
     [InverseProperty("Variant")]
-    public virtual ICollection<ProductPicture> ProductPictures { get; set; } = new List<ProductPicture>();
-
-    [InverseProperty("Variant")]
     public virtual ICollection<ProductPrice> ProductPrices { get; set; } = new List<ProductPrice>();
 
     [ForeignKey("ProductVariantSystemId")]
