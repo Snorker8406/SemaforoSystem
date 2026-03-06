@@ -55,6 +55,7 @@ import type {
   BrandLookup,
   CategoryInfo,
 } from '@/services/product-service'
+import { getProductPictureUrl } from '@/services/product-service'
 
 import { useProducts, useBrands, useCategories } from '@/hooks/use-products'
 
@@ -135,7 +136,19 @@ function createColumns(ctx: ColumnContext): ColumnDef<ProductResponse>[] {
       ),
       cell: ({ row }) => (
         <div className='flex items-center gap-2'>
-          <div className='bg-primary/10 flex size-9 items-center justify-center rounded-lg'>
+          {row.original.hasPicture ? (
+            <img
+              src={getProductPictureUrl(row.original.productId)}
+              alt={row.original.name ?? 'Producto'}
+              className='size-9 rounded-lg object-cover'
+              onError={(e) => {
+                const target = e.currentTarget
+                target.style.display = 'none'
+                target.nextElementSibling?.classList.remove('hidden')
+              }}
+            />
+          ) : null}
+          <div className={`bg-primary/10 flex size-9 items-center justify-center rounded-lg ${row.original.hasPicture ? 'hidden' : ''}`}>
             <PackageIcon className='text-primary size-4' />
           </div>
           <div className='flex flex-col'>

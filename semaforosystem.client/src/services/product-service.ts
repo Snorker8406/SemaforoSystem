@@ -34,7 +34,6 @@ export interface ProductResponse {
   categories: CategoryInfo[]
   schoolCount: number
   hasPicture: boolean
-  pictureCount: number
   stockTotal: number
   latestCost: number | null
   latestPrice: number | null
