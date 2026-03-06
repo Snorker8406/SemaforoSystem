@@ -79,7 +79,9 @@ public partial class ApplicationDbContext : DbContext
 
     public virtual DbSet<ProductCost> ProductCosts { get; set; }
 
-    public virtual DbSet<ProductPicture> ProductPictures { get; set; }
+    public virtual DbSet<ProductImage> ProductImages { get; set; }
+
+    public virtual DbSet<ProductImageTarget> ProductImageTargets { get; set; }
 
     public virtual DbSet<ProductPrice> ProductPrices { get; set; }
 
@@ -466,8 +468,6 @@ public partial class ApplicationDbContext : DbContext
 
             entity.HasOne(d => d.Brand).WithMany(p => p.Products).HasConstraintName("products_brand_id_fkey");
 
-            entity.HasOne(d => d.ProductPicture).WithMany(p => p.Products).HasConstraintName("products_product_picture_id_fkey");
-
             entity.HasOne(d => d.SizeSystem).WithMany(p => p.Products).HasConstraintName("products_size_system_id_fkey");
 
             entity.HasMany(d => d.Categories).WithMany(p => p.Products)
@@ -576,15 +576,54 @@ public partial class ApplicationDbContext : DbContext
                 .HasConstraintName("product_costs_product_id_fkey");
         });
 
-        modelBuilder.Entity<ProductPicture>(entity =>
+        modelBuilder.Entity<ProductImage>(entity =>
         {
-            entity.HasKey(e => e.ProductPictureId).HasName("product_pictures_pkey");
+            entity.HasKey(e => e.ProductImageId).HasName("product_images_pkey");
 
-            entity.Property(e => e.CreateDate).HasDefaultValueSql("CURRENT_DATE");
+            entity.HasIndex(e => new { e.Sha256, e.ImageRole }, "ux_product_images_sha256_role")
+                .IsUnique()
+                .HasFilter("(sha256 IS NOT NULL)");
 
-            entity.HasOne(d => d.Product).WithMany(p => p.ProductPictures)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("product_pictures_product_id_fkey");
+            entity.HasIndex(e => e.StorageKey, "ux_product_images_storage_key")
+                .IsUnique()
+                .HasFilter("(storage_key IS NOT NULL)");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.ImageRole).HasDefaultValueSql("'ORIGINAL'::character varying");
+            entity.Property(e => e.Sha256).IsFixedLength();
+        });
+
+        modelBuilder.Entity<ProductImageTarget>(entity =>
+        {
+            entity.HasKey(e => e.ProductImageTargetId).HasName("product_image_targets_pkey");
+
+            entity.HasIndex(e => e.InventoryItemDefinitionId, "ux_product_image_targets_primary_itemdef")
+                .IsUnique()
+                .HasFilter("(((target_type)::text = 'ITEM_DEFINITION'::text) AND (is_primary = true))");
+
+            entity.HasIndex(e => e.ProductId, "ux_product_image_targets_primary_product")
+                .IsUnique()
+                .HasFilter("(((target_type)::text = 'PRODUCT'::text) AND (is_primary = true))");
+
+            entity.HasIndex(e => new { e.ProductImageId, e.InventoryItemDefinitionId }, "ux_product_image_targets_unique_itemdef")
+                .IsUnique()
+                .HasFilter("((target_type)::text = 'ITEM_DEFINITION'::text)");
+
+            entity.HasIndex(e => new { e.ProductImageId, e.ProductId }, "ux_product_image_targets_unique_product")
+                .IsUnique()
+                .HasFilter("((target_type)::text = 'PRODUCT'::text)");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.HasOne(d => d.InventoryItemDefinition).WithOne(p => p.ProductImageTarget)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("product_image_targets_inventory_item_definition_id_fkey");
+
+            entity.HasOne(d => d.Product).WithOne(p => p.ProductImageTarget)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("product_image_targets_product_id_fkey");
+
+            entity.HasOne(d => d.ProductImage).WithMany(p => p.ProductImageTargets).HasConstraintName("product_image_targets_product_image_id_fkey");
         });
 
         modelBuilder.Entity<ProductPrice>(entity =>

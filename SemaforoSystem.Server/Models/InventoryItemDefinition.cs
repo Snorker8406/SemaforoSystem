@@ -56,6 +56,9 @@ public partial class InventoryItemDefinition
     [InverseProperty("InventoryItemDefinitions")]
     public virtual Product Product { get; set; } = null!;
 
+    [InverseProperty("InventoryItemDefinition")]
+    public virtual ProductImageTarget? ProductImageTarget { get; set; }
+
     [ForeignKey("SizeId")]
     [InverseProperty("InventoryItemDefinitions")]
     public virtual Size? Size { get; set; }

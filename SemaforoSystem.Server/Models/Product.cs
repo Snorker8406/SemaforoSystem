@@ -17,9 +17,6 @@ public partial class Product
     [Column("brand_id")]
     public int? BrandId { get; set; }
 
-    [Column("product_picture_id")]
-    public int? ProductPictureId { get; set; }
-
     [Column("name")]
     [StringLength(500)]
     public string? Name { get; set; }
@@ -64,12 +61,8 @@ public partial class Product
     [InverseProperty("Product")]
     public virtual ICollection<ProductCost> ProductCosts { get; set; } = new List<ProductCost>();
 
-    [ForeignKey("ProductPictureId")]
-    [InverseProperty("Products")]
-    public virtual ProductPicture? ProductPicture { get; set; }
-
     [InverseProperty("Product")]
-    public virtual ICollection<ProductPicture> ProductPictures { get; set; } = new List<ProductPicture>();
+    public virtual ProductImageTarget? ProductImageTarget { get; set; }
 
     [InverseProperty("Product")]
     public virtual ICollection<ProductPrice> ProductPrices { get; set; } = new List<ProductPrice>();

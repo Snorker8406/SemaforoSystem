@@ -36,8 +36,7 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             Name = c.Name,
         }).ToList(),
         SchoolCount = product.Schools.Count,
-        HasPicture = product.ProductPictureId != null,
-        PictureCount = product.ProductPictures.Count,
+        HasPicture = product.ProductImageTarget is not null,
         StockTotal = product.Stocks.Sum(s => s.Quantity ?? 0),
         LatestCost = product.ProductCosts
             .OrderByDescending(c => c.CreateDate)
@@ -70,7 +69,7 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             .Include(p => p.SizeSystem)
             .Include(p => p.Categories)
             .Include(p => p.Schools)
-            .Include(p => p.ProductPictures)
+            .Include(p => p.ProductImageTarget)
             .Include(p => p.Stocks)
             .Include(p => p.ProductCosts)
             .Include(p => p.ProductPrices)
@@ -180,7 +179,7 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             .Include(p => p.SizeSystem)
             .Include(p => p.Categories)
             .Include(p => p.Schools)
-            .Include(p => p.ProductPictures)
+            .Include(p => p.ProductImageTarget)
             .Include(p => p.Stocks)
             .Include(p => p.ProductCosts)
             .Include(p => p.ProductPrices)
@@ -327,7 +326,7 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
         await db.Entry(product).Reference(p => p.SizeSystem).LoadAsync(ct);
         await db.Entry(product).Collection(p => p.Categories).LoadAsync(ct);
         await db.Entry(product).Collection(p => p.Schools).LoadAsync(ct);
-        await db.Entry(product).Collection(p => p.ProductPictures).LoadAsync(ct);
+        await db.Entry(product).Reference(p => p.ProductImageTarget).LoadAsync(ct);
         await db.Entry(product).Collection(p => p.Stocks).LoadAsync(ct);
         await db.Entry(product).Collection(p => p.ProductCosts).LoadAsync(ct);
         await db.Entry(product).Collection(p => p.ProductPrices).LoadAsync(ct);
@@ -355,7 +354,7 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             .Include(p => p.SizeSystem)
             .Include(p => p.Categories)
             .Include(p => p.Schools)
-            .Include(p => p.ProductPictures)
+            .Include(p => p.ProductImageTarget)
             .Include(p => p.Stocks)
             .Include(p => p.ProductCosts)
             .Include(p => p.ProductPrices)
@@ -709,12 +708,12 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    //  Product Picture
+    //  Product Picture (legacy redirect to ImagesController)
     // ═══════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Returns the main picture for a product (product_picture_id FK).
-    /// Falls back to the first picture in ProductPictures if main FK is null.
+    /// Returns the primary image for a product (redirects to new images API).
+    /// Uses product_image_targets with is_primary=true fallback to sort_order.
     /// </summary>
     [HttpGet("{productId:int}/picture")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -722,39 +721,18 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> GetPicture(int productId, CancellationToken ct)
     {
-        // Try the "main" picture first
-        var product = await db.Products
+        var target = await db.ProductImageTargets
+            .Include(t => t.ProductImage)
             .AsNoTracking()
-            .Where(p => p.ProductId == productId)
-            .Select(p => new { p.ProductPictureId })
+            .Where(t => t.TargetType == "PRODUCT" && t.ProductId == productId)
+            .OrderByDescending(t => t.IsPrimary)
+            .ThenBy(t => t.SortOrder)
             .FirstOrDefaultAsync(ct);
 
-        if (product is null)
-            return NotFound(new { message = $"Producto con ID {productId} no encontrado." });
-
-        byte[]? pictureBytes = null;
-
-        if (product.ProductPictureId is not null)
-        {
-            pictureBytes = await db.ProductPictures
-                .AsNoTracking()
-                .Where(pp => pp.ProductPictureId == product.ProductPictureId)
-                .Select(pp => pp.Picture)
-                .FirstOrDefaultAsync(ct);
-        }
-
-        // Fallback: first available picture
-        pictureBytes ??= await db.ProductPictures
-            .AsNoTracking()
-            .Where(pp => pp.ProductId == productId)
-            .OrderBy(pp => pp.ProductPictureId)
-            .Select(pp => pp.Picture)
-            .FirstOrDefaultAsync(ct);
-
-        if (pictureBytes is null or { Length: 0 })
+        if (target?.ProductImage is null || target.ProductImage.ImageBytes.Length == 0)
             return NotFound(new { message = "Este producto no tiene imagen." });
 
-        return File(pictureBytes, "image/png");
+        return File(target.ProductImage.ImageBytes, target.ProductImage.ContentType);
     }
 }
 

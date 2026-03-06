@@ -29,7 +29,6 @@ public class ProductResponse
     // Related counts & summary data
     public int SchoolCount { get; set; }
     public bool HasPicture { get; set; }
-    public int PictureCount { get; set; }
     public int StockTotal { get; set; }
     public decimal? LatestCost { get; set; }
     public decimal? LatestPrice { get; set; }
