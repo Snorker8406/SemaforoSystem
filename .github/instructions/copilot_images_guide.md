@@ -1,217 +1,137 @@
 # Product Images Development Guide (VS Code Copilot + .NET Core)
 
-> Purpose: This document explains **how to store, relate, and query product images** with support for:
+> Purpose: This document defines **how to store, relate, and query product images** with support for:
 > - Images at **product level** (generic)
-> - Images at **configuration level** (specific to `inventory_item_definitions`, i.e., product + size + dynamic variants)
+> - Images at **visual-combination level** (**ignores size**; same photo for multiple sizes)
+> - Images at **item-definition level** (size-specific or configuration-specific override)
 > - Binary storage in PostgreSQL via **BYTEA**, with optional future migration to object storage (`storage_key`/`url`)
->
-> Copy this file into your repo (recommended path): `.github/copilot-instructions.images.md`  
-> Or merge it into your main Copilot instructions file.
+
+Recommended repo path: `.github/copilot-instructions.images.md`
 
 ---
 
-## 1) Design Summary
+## 1) Key Concepts
 
-### 1.1 Why we don’t link images directly to variants
-Products can have **dynamic combinations of N variants** (from different variant systems).  
-A single variant value (e.g., `TINTO`) is **not enough** to uniquely identify the correct photo when multiple variant systems exist (e.g., `Color=TINTO` + `Model=LOYOLA`).
+### 1.1 Why we don’t link images directly to single variants
+Products can have **dynamic combinations of N variants** (from different variant systems). A single variant value (e.g., `TINTO`) is **not enough** to uniquely identify the correct photo when multiple variant systems exist (e.g., `Color=TINTO` + `Model=LOYOLA`).
 
-Therefore, images attach to either:
-- a **Product** (applies to all configurations), or
-- an **Inventory Item Definition** (`inventory_item_definitions`) which represents a stable configuration:  
-  `product_id + optional size_id + set of product_variant_id`
+### 1.2 Why `inventory_item_definitions` alone is not enough for images
+`inventory_item_definitions` represents the **inventory identity** (product + size + set of variants). But images often **do not change by size** (e.g., the same vest in S/M/L). Attaching images only to `inventory_item_definitions` forces duplication per size.
+
+### 1.3 The solution: a “Visual Definition” level (ignores size)
+We introduce a stable entity for visuals:
+
+- **Visual Definition** = `product_id + set of variants (NO size)`
+
+This lets one image cover “Product + variants” across sizes.
 
 ---
 
 ## 2) Tables & Meaning
 
 ### 2.1 `product_images`
-Stores the actual image binary + metadata.
+Stores image binary + metadata.
 
 **Core columns**
-- `product_image_id` (bigserial, PK)
-- `image_bytes` (bytea, NOT NULL) — binary image data
-- `content_type` (varchar(100), NOT NULL) — `image/jpeg`, `image/png`, `image/webp`
-- `image_role` (varchar(20), NOT NULL, default `ORIGINAL`) — `ORIGINAL` | `THUMB` | `DETAIL` (extensible)
+- `product_image_id` (PK)
+- `image_bytes` (bytea, NOT NULL)
+- `content_type` (varchar) — `image/jpeg`, `image/png`, `image/webp`
+- `image_role` (varchar) — `ORIGINAL` | `THUMB` | `DETAIL`
 - `width_px` (int, nullable)
 - `height_px` (int, nullable)
 - `file_size_bytes` (int, nullable)
 - `sha256` (char(64), nullable) — optional dedup
-- `file_name` (varchar(255), nullable)
-- `alt_text` (varchar(200), nullable)
-- `created_at` (timestamp, default now)
+- `file_name` (varchar, nullable)
+- `alt_text` (varchar, nullable)
+- `created_at` (timestamp)
 
 **Future-ready (optional)**
-- `storage_key` (varchar(300), nullable)
-- `url` (varchar(500), nullable)
+- `storage_key` (varchar, nullable)
+- `url` (varchar, nullable)
 
-> Guideline: Even if we store bytes in DB now, keep `storage_key` available for a later migration to S3/MinIO/GCS/CDN.
-
----
-
-### 2.2 `product_image_targets`
-Links an image to **exactly one** target type:
-- `PRODUCT` (generic image for a product)
-- `ITEM_DEFINITION` (image for a specific configuration)
+### 2.2 `product_visual_definitions`
+Represents the **visual identity** of a configuration (size ignored).
 
 **Core columns**
-- `product_image_target_id` (bigserial, PK)
-- `product_image_id` (FK -> product_images, ON DELETE CASCADE)
-- `target_type` (varchar(30), NOT NULL) — `PRODUCT` | `ITEM_DEFINITION`
-- `product_id` (int, nullable FK -> products)
-- `inventory_item_definition_id` (int, nullable FK -> inventory_item_definitions)
-- `sort_order` (int, default 0)
-- `is_primary` (bool, default false)
-- `created_at` (timestamp, default now)
+- `product_visual_definition_id` (PK)
+- `product_id` (FK -> products)
+- `variants_hash` (char(64)) — hash of sorted variant IDs (e.g., sha256("12,33,81"))
+- `created_at` (timestamp)
 
-**Constraint**
-- If `target_type='PRODUCT'`: `product_id NOT NULL` and `inventory_item_definition_id IS NULL`
-- If `target_type='ITEM_DEFINITION'`: `inventory_item_definition_id NOT NULL` and `product_id IS NULL`
+**Uniqueness**
+- unique `(product_id, variants_hash)`
 
-**Uniqueness expectations**
-- Prevent duplicate links per target:
-  - same `product_image_id` cannot be linked twice to the same `product_id`
-  - same `product_image_id` cannot be linked twice to the same `inventory_item_definition_id`
-- Only one primary image per target:
-  - one `is_primary=true` per product target
-  - one `is_primary=true` per item_definition target
+### 2.3 `product_visual_definition_variants`
+Links a visual definition to dynamic variants.
 
----
+- PK: (`product_visual_definition_id`, `product_variant_id`)
 
-## 3) Roles & UI Consumption
+### 2.4 `inventory_item_definitions` (image-related note)
+Inventory identity includes size. Recommended extra column:
 
-### 3.1 `image_role` strategy
-Use roles to avoid loading full images where thumbnails are needed:
+- `product_visual_definition_id` (nullable FK -> product_visual_definitions)
 
-- `THUMB`: small (e.g., 300–500px) for tables/grids
-- `ORIGINAL`: optimized full image (e.g., max width 1600px)
-- `DETAIL`: optional extra (zoom, close-ups, etc.)
+### 2.5 `product_image_targets`
+Links an image to exactly one scope:
 
-**Rule of thumb**
-- Catalog/list UI requests `THUMB` only
-- Product detail UI requests `ORIGINAL` and/or `DETAIL`
+- `PRODUCT` — generic product images
+- `VISUAL_DEFINITION` — product + variants images (size ignored)
+- `ITEM_DEFINITION` — size/config override
+
+Exactly one target FK must be set depending on `target_type`:
+- `product_id` for `PRODUCT`
+- `product_visual_definition_id` for `VISUAL_DEFINITION`
+- `inventory_item_definition_id` for `ITEM_DEFINITION`
+
+Ordering fields:
+- `sort_order` (int)
+- `is_primary` (bool)
 
 ---
 
-## 4) Retrieval Rules (Important)
+## 3) Retrieval Rules (Most Important)
 
-### 4.1 When you have `inventory_item_definition_id` (selected configuration)
-Always fetch images with this fallback order:
+### 3.1 Fallback order when UI knows `inventory_item_definition_id`
+1) `ITEM_DEFINITION`
+2) `VISUAL_DEFINITION` (via `inventory_item_definitions.product_visual_definition_id`)
+3) `PRODUCT`
 
-1) Configuration-specific images:
-   - targets where `target_type='ITEM_DEFINITION'` and `inventory_item_definition_id = X`
-2) If none found → fallback to product-level images:
-   - targets where `target_type='PRODUCT'` and `product_id = item_definition.product_id`
+Within each scope:
+- order by `is_primary DESC`, then `sort_order ASC`
 
-**Primary image preference**
-- Prefer `is_primary=true` within the chosen scope
-- Then order by `sort_order`
-
-### 4.2 When you have only `product_id` (no configuration selected)
-Fetch product-level images:
-- `target_type='PRODUCT' AND product_id = X`
-Order by:
-- `is_primary DESC`, then `sort_order ASC`
+### 3.2 When UI knows only `product_id`
+Return `PRODUCT` targets for that product.
 
 ---
 
-## 5) Recommended API Patterns (.NET Core)
+## 4) Role Strategy (`image_role`)
 
-### 5.1 Upload flow (binary in DB)
-**Inputs**
-- file bytes
-- `content_type`, optional `file_name`, optional `alt_text`
-- one of:
-  - target: `{ target_type: "PRODUCT", product_id }`
-  - target: `{ target_type: "ITEM_DEFINITION", inventory_item_definition_id }`
-- optional: `image_role` (default `ORIGINAL`), `sort_order`, `is_primary`
+- `THUMB`: list/grid
+- `ORIGINAL`: detail page
+- `DETAIL`: optional extras
 
-**Steps**
-1) Insert row in `product_images` with bytes + metadata
-2) Insert row in `product_image_targets` to attach it to the correct scope
-3) If `is_primary=true`, enforce uniqueness (database constraint + app handling)
-
-### 5.2 Delete flow
-Deleting an image should:
-- delete `product_images` (cascade deletes targets), OR
-- delete target only (detach), leaving the image if it is shared across targets
-
-**Guideline**
-- If the system allows one image shared by many targets, support “detach” separately:
-  - `DELETE /targets/{id}`
-  - `DELETE /images/{id}` for full removal
-
-### 5.3 Endpoint suggestions
-- `POST   /api/images` (upload image bytes + metadata + target)
-- `DELETE /api/images/{productImageId}` (delete image and its targets)
-- `DELETE /api/images/targets/{productImageTargetId}` (detach)
-- `GET    /api/products/{productId}/images?role=THUMB`
-- `GET    /api/item-definitions/{id}/images?role=THUMB` (with fallback)
+Rule: list endpoints should not return `image_bytes`.
 
 ---
 
-## 6) Query Guidelines (EF Core)
+## 5) Get-or-create Visual Definition (service algorithm)
 
-### 6.1 Avoid loading `image_bytes` unless needed
-For list pages, return metadata and a lightweight representation:
-- If you must deliver bytes, do it from a dedicated endpoint:
-  - `GET /api/images/{id}/content`
-- In EF, project without selecting `image_bytes` for list endpoints.
+Inputs: `product_id`, `variant_ids[]`
 
-**DTO suggestion**
-- `ProductImageDto { id, role, contentType, width, height, isPrimary, sortOrder }`
-
-### 6.2 Example logic (pseudocode) for item_definition images with fallback
-1) Query targets for `ITEM_DEFINITION`
-2) If none:
-   - fetch product_id from `inventory_item_definitions`
-   - query targets for `PRODUCT`
-
-**Sorting**
-- `OrderByDescending(t => t.IsPrimary).ThenBy(t => t.SortOrder)`
+1) dedupe + sort `variant_ids`
+2) compute `variants_hash = sha256("id1,id2,...")`
+3) find `product_visual_definitions` by `(product_id, variants_hash)`
+4) if not found: create it + insert rows into `product_visual_definition_variants`
 
 ---
 
-## 7) Performance & Storage Guidance
-
-### 7.1 Volume expectations
-~3,000 images total is feasible in Postgres `bytea`, especially if optimized.
-
-### 7.2 Best practices
-- Store compressed images (WebP/JPEG) and cap resolution (e.g., 1600px)
-- Generate thumbnails (`THUMB`) for catalog usage
-- Use `sha256` (optional) to deduplicate uploads
-- Consider later migration to object storage; keep `storage_key` fields.
-
----
-
-## 8) Consistency Rules (Do/Don’t)
+## 6) Do / Don’t
 
 ### DO
-- ✅ Attach configuration-specific images to `inventory_item_definitions`
-- ✅ Use `PRODUCT` images as fallback when configuration images are missing
-- ✅ Maintain exactly one primary image per target
-- ✅ Use `image_role=THUMB` for list screens
+- ✅ Use `VISUAL_DEFINITION` when images are the same across sizes
+- ✅ Use `ITEM_DEFINITION` only for true size-specific overrides
+- ✅ Keep exactly one `is_primary=true` per target scope
 
 ### DON’T
-- ❌ Don’t link images to a single variant value for multi-system combinations
-- ❌ Don’t return `image_bytes` in bulk list endpoints
-- ❌ Don’t allow multiple primaries for the same target scope
-
----
-
-## 9) Example: "CHALECO TINTO LOYOLA"
-
-- `products`: CHALECO (`product_id = P1`)
-- `inventory_item_definitions`: configuration (`inventory_item_definition_id = D1`)
-  - points to `product_id=P1`
-  - includes variants: `TINTO` (Color system) + `LOYOLA` (other system)
-
-Images:
-- Generic CHALECO photo → `product_image_targets.target_type='PRODUCT', product_id=P1`
-- Specific TINTO+LOYOLA photo → `product_image_targets.target_type='ITEM_DEFINITION', inventory_item_definition_id=D1`
-
-Retrieval:
-- UI selected D1 → return D1 images, else fallback to P1 images.
-
----
+- ❌ Don’t link images to a single variant when combinations exist
+- ❌ Don’t duplicate the same image per size unnecessarily

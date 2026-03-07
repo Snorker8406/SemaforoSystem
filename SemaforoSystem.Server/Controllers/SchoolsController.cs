@@ -242,14 +242,14 @@ public class SchoolsController(ApplicationDbContext db) : ControllerBase
         var school = await db.Schools
             .Include(s => s.Embroideries)
             .Include(s => s.Files)
-            .Include(s => s.Products)
+            .Include(s => s.ProductSchools)
             .FirstOrDefaultAsync(s => s.SchoolId == id, ct);
 
         if (school is null)
             return NotFound(new { message = $"School with ID {id} was not found." });
 
         // Guard against deleting schools with related data
-        if (school.Embroideries.Count > 0 || school.Files.Count > 0 || school.Products.Count > 0)
+        if (school.Embroideries.Count > 0 || school.Files.Count > 0 || school.ProductSchools.Count > 0)
         {
             return Conflict(new
             {
@@ -258,7 +258,7 @@ public class SchoolsController(ApplicationDbContext db) : ControllerBase
                 {
                     embroideries = school.Embroideries.Count,
                     files = school.Files.Count,
-                    products = school.Products.Count,
+                    products = school.ProductSchools.Count,
                 },
             });
         }

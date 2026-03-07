@@ -87,9 +87,13 @@ public partial class ApplicationDbContext : DbContext
 
     public virtual DbSet<ProductProvider> ProductProviders { get; set; }
 
+    public virtual DbSet<ProductSchool> ProductSchools { get; set; }
+
     public virtual DbSet<ProductVariant> ProductVariants { get; set; }
 
     public virtual DbSet<ProductVariantSystem> ProductVariantSystems { get; set; }
+
+    public virtual DbSet<ProductVisualDefinition> ProductVisualDefinitions { get; set; }
 
     public virtual DbSet<Provider> Providers { get; set; }
 
@@ -340,6 +344,10 @@ public partial class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("inventory_item_definitions_product_id_fkey");
 
+            entity.HasOne(d => d.ProductVisualDefinition).WithMany(p => p.InventoryItemDefinitions)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("inventory_item_definitions_visual_def_fkey");
+
             entity.HasOne(d => d.Size).WithMany(p => p.InventoryItemDefinitions).HasConstraintName("inventory_item_definitions_size_id_fkey");
 
             entity.HasMany(d => d.ProductVariants).WithMany(p => p.InventoryItemDefinitions)
@@ -507,25 +515,6 @@ public partial class ApplicationDbContext : DbContext
                         j.IndexerProperty<int>("ProductId").HasColumnName("product_id");
                         j.IndexerProperty<int>("ProductVariantSystemId").HasColumnName("product_variant_system_id");
                     });
-
-            entity.HasMany(d => d.Schools).WithMany(p => p.Products)
-                .UsingEntity<Dictionary<string, object>>(
-                    "ProductSchool",
-                    r => r.HasOne<School>().WithMany()
-                        .HasForeignKey("SchoolId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("product_schools_school_id_fkey"),
-                    l => l.HasOne<Product>().WithMany()
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("product_schools_product_id_fkey"),
-                    j =>
-                    {
-                        j.HasKey("ProductId", "SchoolId").HasName("product_schools_pkey");
-                        j.ToTable("product_schools");
-                        j.IndexerProperty<int>("ProductId").HasColumnName("product_id");
-                        j.IndexerProperty<int>("SchoolId").HasColumnName("school_id");
-                    });
         });
 
         modelBuilder.Entity<ProductCombo>(entity =>
@@ -605,6 +594,10 @@ public partial class ApplicationDbContext : DbContext
                 .IsUnique()
                 .HasFilter("(((target_type)::text = 'PRODUCT'::text) AND (is_primary = true))");
 
+            entity.HasIndex(e => e.ProductVisualDefinitionId, "ux_product_image_targets_primary_visualdef")
+                .IsUnique()
+                .HasFilter("(((target_type)::text = 'VISUAL_DEFINITION'::text) AND (is_primary = true))");
+
             entity.HasIndex(e => new { e.ProductImageId, e.InventoryItemDefinitionId }, "ux_product_image_targets_unique_itemdef")
                 .IsUnique()
                 .HasFilter("((target_type)::text = 'ITEM_DEFINITION'::text)");
@@ -612,6 +605,10 @@ public partial class ApplicationDbContext : DbContext
             entity.HasIndex(e => new { e.ProductImageId, e.ProductId }, "ux_product_image_targets_unique_product")
                 .IsUnique()
                 .HasFilter("((target_type)::text = 'PRODUCT'::text)");
+
+            entity.HasIndex(e => new { e.ProductImageId, e.ProductVisualDefinitionId }, "ux_product_image_targets_unique_visualdef")
+                .IsUnique()
+                .HasFilter("((target_type)::text = 'VISUAL_DEFINITION'::text)");
 
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
 
@@ -624,6 +621,10 @@ public partial class ApplicationDbContext : DbContext
                 .HasConstraintName("product_image_targets_product_id_fkey");
 
             entity.HasOne(d => d.ProductImage).WithMany(p => p.ProductImageTargets).HasConstraintName("product_image_targets_product_image_id_fkey");
+
+            entity.HasOne(d => d.ProductVisualDefinition).WithOne(p => p.ProductImageTarget)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("product_image_targets_visual_def_fkey");
         });
 
         modelBuilder.Entity<ProductPrice>(entity =>
@@ -654,6 +655,21 @@ public partial class ApplicationDbContext : DbContext
                 .HasConstraintName("product_providers_provider_id_fkey");
         });
 
+        modelBuilder.Entity<ProductSchool>(entity =>
+        {
+            entity.HasKey(e => new { e.ProductId, e.SchoolId }).HasName("product_schools_pkey");
+
+            entity.HasOne(d => d.InventoryItemDefinition).WithMany(p => p.ProductSchools).HasConstraintName("product_schools_inventory_item_definition_id_fkey");
+
+            entity.HasOne(d => d.Product).WithMany(p => p.ProductSchools)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("product_schools_product_id_fkey");
+
+            entity.HasOne(d => d.School).WithMany(p => p.ProductSchools)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("product_schools_school_id_fkey");
+        });
+
         modelBuilder.Entity<ProductVariant>(entity =>
         {
             entity.HasKey(e => e.ProductVariantId).HasName("product_variants_pkey");
@@ -668,6 +684,35 @@ public partial class ApplicationDbContext : DbContext
         modelBuilder.Entity<ProductVariantSystem>(entity =>
         {
             entity.HasKey(e => e.ProductVariantId).HasName("product_variant_system_pkey");
+        });
+
+        modelBuilder.Entity<ProductVisualDefinition>(entity =>
+        {
+            entity.HasKey(e => e.ProductVisualDefinitionId).HasName("product_visual_definitions_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.VariantsHash).IsFixedLength();
+
+            entity.HasOne(d => d.Product).WithMany(p => p.ProductVisualDefinitions).HasConstraintName("product_visual_definitions_product_id_fkey");
+
+            entity.HasMany(d => d.ProductVariants).WithMany(p => p.ProductVisualDefinitions)
+                .UsingEntity<Dictionary<string, object>>(
+                    "ProductVisualDefinitionVariant",
+                    r => r.HasOne<ProductVariant>().WithMany()
+                        .HasForeignKey("ProductVariantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("product_visual_definition_variants_product_variant_id_fkey"),
+                    l => l.HasOne<ProductVisualDefinition>().WithMany()
+                        .HasForeignKey("ProductVisualDefinitionId")
+                        .HasConstraintName("product_visual_definition_var_product_visual_definition_id_fkey"),
+                    j =>
+                    {
+                        j.HasKey("ProductVisualDefinitionId", "ProductVariantId").HasName("product_visual_definition_variants_pkey");
+                        j.ToTable("product_visual_definition_variants");
+                        j.HasIndex(new[] { "ProductVariantId" }, "ix_visual_def_variants_variant");
+                        j.IndexerProperty<long>("ProductVisualDefinitionId").HasColumnName("product_visual_definition_id");
+                        j.IndexerProperty<int>("ProductVariantId").HasColumnName("product_variant_id");
+                    });
         });
 
         modelBuilder.Entity<Provider>(entity =>

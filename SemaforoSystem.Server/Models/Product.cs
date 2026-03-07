@@ -68,6 +68,12 @@ public partial class Product
     public virtual ICollection<ProductPrice> ProductPrices { get; set; } = new List<ProductPrice>();
 
     [InverseProperty("Product")]
+    public virtual ICollection<ProductSchool> ProductSchools { get; set; } = new List<ProductSchool>();
+
+    [InverseProperty("Product")]
+    public virtual ICollection<ProductVisualDefinition> ProductVisualDefinitions { get; set; } = new List<ProductVisualDefinition>();
+
+    [InverseProperty("Product")]
     public virtual ICollection<SalesDetail> SalesDetails { get; set; } = new List<SalesDetail>();
 
     [ForeignKey("SizeSystemId")]
@@ -84,8 +90,4 @@ public partial class Product
     [ForeignKey("ProductId")]
     [InverseProperty("Products")]
     public virtual ICollection<ProductVariantSystem> ProductVariantSystems { get; set; } = new List<ProductVariantSystem>();
-
-    [ForeignKey("ProductId")]
-    [InverseProperty("Products")]
-    public virtual ICollection<School> Schools { get; set; } = new List<School>();
 }

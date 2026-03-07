@@ -34,4 +34,8 @@ public partial class ProductVariant
     [ForeignKey("ProductVariantId")]
     [InverseProperty("ProductVariants")]
     public virtual ICollection<InventoryItemDefinition> InventoryItemDefinitions { get; set; } = new List<InventoryItemDefinition>();
+
+    [ForeignKey("ProductVariantId")]
+    [InverseProperty("ProductVariants")]
+    public virtual ICollection<ProductVisualDefinition> ProductVisualDefinitions { get; set; } = new List<ProductVisualDefinition>();
 }

@@ -21,6 +21,7 @@ import {
   createProductPrice,
   updateProductPrice,
   deleteProductPrice,
+  getProductItemDefinitions,
 } from '@/services/product-service'
 import { ApiError } from '@/lib/api-client'
 
@@ -36,6 +37,7 @@ export const productKeys = {
   categories: () => ['product-categories'] as const,
   prices: (productId: number) => [...productKeys.all, 'prices', productId] as const,
   schools: (productId: number) => [...productKeys.all, 'schools', productId] as const,
+  itemDefinitions: (productId: number) => [...productKeys.all, 'item-definitions', productId] as const,
 }
 
 // ── Queries ──────────────────────────────────────────────
@@ -81,6 +83,16 @@ export function useProductSchools(productId: number | null | undefined) {
   return useQuery({
     queryKey: productKeys.schools(productId!),
     queryFn: () => getProductSchools(productId!),
+    enabled: productId != null,
+    staleTime: 5 * 60 * 1000, // 5 min
+  })
+}
+
+/** Item definitions (variant-derived items) for a product */
+export function useProductItemDefinitions(productId: number | null | undefined) {
+  return useQuery({
+    queryKey: productKeys.itemDefinitions(productId!),
+    queryFn: () => getProductItemDefinitions(productId!),
     enabled: productId != null,
     staleTime: 5 * 60 * 1000, // 5 min
   })

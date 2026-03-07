@@ -35,7 +35,7 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             CategoryId = c.CategoryId,
             Name = c.Name,
         }).ToList(),
-        SchoolCount = product.Schools.Count,
+        SchoolCount = product.ProductSchools.Count,
         HasPicture = product.ProductImageTarget is not null,
         StockTotal = product.Stocks.Sum(s => s.Quantity ?? 0),
         LatestCost = product.ProductCosts
@@ -68,7 +68,7 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             .Include(p => p.Brand)
             .Include(p => p.SizeSystem)
             .Include(p => p.Categories)
-            .Include(p => p.Schools)
+            .Include(p => p.ProductSchools)
             .Include(p => p.ProductImageTarget)
             .Include(p => p.Stocks)
             .Include(p => p.ProductCosts)
@@ -85,9 +85,9 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             q = q.Where(p => p.Categories.Any(c => c.CategoryId == query.CategoryId.Value));
 
         if (query.HasSchools == true)
-            q = q.Where(p => p.Schools.Any());
+            q = q.Where(p => p.ProductSchools.Any());
         else if (query.HasSchools == false)
-            q = q.Where(p => !p.Schools.Any());
+            q = q.Where(p => !p.ProductSchools.Any());
 
         if (!string.IsNullOrWhiteSpace(query.Model))
         {
@@ -133,8 +133,8 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
                 ? q.OrderByDescending(p => p.Model)
                 : q.OrderBy(p => p.Model),
             "schoolcount" => query.SortDescending
-                ? q.OrderByDescending(p => p.Schools.Count)
-                : q.OrderBy(p => p.Schools.Count),
+                ? q.OrderByDescending(p => p.ProductSchools.Count)
+                : q.OrderBy(p => p.ProductSchools.Count),
             "stocktotal" => query.SortDescending
                 ? q.OrderByDescending(p => p.Stocks.Sum(s => s.Quantity ?? 0))
                 : q.OrderBy(p => p.Stocks.Sum(s => s.Quantity ?? 0)),
@@ -178,7 +178,7 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             .Include(p => p.Brand)
             .Include(p => p.SizeSystem)
             .Include(p => p.Categories)
-            .Include(p => p.Schools)
+            .Include(p => p.ProductSchools)
             .Include(p => p.ProductImageTarget)
             .Include(p => p.Stocks)
             .Include(p => p.ProductCosts)
@@ -209,15 +209,16 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             .Select(p => new
             {
                 p.ProductId,
-                Schools = p.Schools
-                    .OrderBy(s => s.SchoolLevel.Name)
-                    .ThenBy(s => s.Name)
-                    .Select(s => new ProductSchoolInfo
+                Schools = p.ProductSchools
+                    .OrderBy(ps => ps.School.SchoolLevel.Name)
+                    .ThenBy(ps => ps.School.Name)
+                    .Select(ps => new ProductSchoolInfo
                     {
-                        SchoolId = s.SchoolId,
-                        Name = s.Name,
-                        SchoolLevelId = s.SchoolLevelId,
-                        SchoolLevelName = s.SchoolLevel.Name,
+                        SchoolId = ps.SchoolId,
+                        Name = ps.School.Name,
+                        SchoolLevelId = ps.School.SchoolLevelId,
+                        SchoolLevelName = ps.School.SchoolLevel.Name,
+                        InventoryItemDefinitionId = ps.InventoryItemDefinitionId,
                     })
                     .ToList(),
             })
@@ -227,6 +228,56 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             return NotFound(new { message = $"Product with ID {id} was not found." });
 
         return Ok(product.Schools);
+    }
+
+    // ───────────────────── GET item-definitions ────────────────────────
+
+    /// <summary>
+    /// Returns the inventory item definitions (variant-derived items) for a product,
+    /// including size, variant info, and whether an image exists.
+    /// </summary>
+    [HttpGet("{id:int}/item-definitions")]
+    [ProducesResponseType(typeof(List<ItemDefinitionSummary>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<List<ItemDefinitionSummary>>> GetItemDefinitions(
+        int id, CancellationToken ct)
+    {
+        var exists = await db.Products.AnyAsync(p => p.ProductId == id, ct);
+        if (!exists)
+            return NotFound(new { message = $"Product with ID {id} was not found." });
+
+        var items = await db.InventoryItemDefinitions
+            .AsNoTracking()
+            .Where(d => d.ProductId == id)
+            .Include(d => d.Size)
+            .Include(d => d.ProductVariants)
+                .ThenInclude(v => v.ProductVariantSystem)
+            .Include(d => d.ProductImageTarget)
+            .OrderBy(d => d.SkuCode)
+            .Select(d => new ItemDefinitionSummary
+            {
+                InventoryItemDefinitionId = d.InventoryItemDefinitionId,
+                SkuCode = d.SkuCode,
+                NameSnapshot = d.NameSnapshot,
+                IsSerialized = d.IsSerialized,
+                IsActive = d.IsActive,
+                SizeId = d.SizeId,
+                SizeValue = d.Size != null ? d.Size.SizeValue : null,
+                HasImage = d.ProductImageTarget != null,
+                Variants = d.ProductVariants
+                    .OrderBy(v => v.ProductVariantSystem.Name)
+                    .ThenBy(v => v.VariantValue)
+                    .Select(v => new ItemDefinitionVariantInfo
+                    {
+                        ProductVariantId = v.ProductVariantId,
+                        VariantValue = v.VariantValue,
+                        SystemName = v.ProductVariantSystem.Name,
+                    })
+                    .ToList(),
+            })
+            .ToListAsync(ct);
+
+        return Ok(items);
     }
 
     // ───────────────────────────── POST create ─────────────────────────
@@ -325,7 +376,7 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
         await db.Entry(product).Reference(p => p.Brand).LoadAsync(ct);
         await db.Entry(product).Reference(p => p.SizeSystem).LoadAsync(ct);
         await db.Entry(product).Collection(p => p.Categories).LoadAsync(ct);
-        await db.Entry(product).Collection(p => p.Schools).LoadAsync(ct);
+        await db.Entry(product).Collection(p => p.ProductSchools).LoadAsync(ct);
         await db.Entry(product).Reference(p => p.ProductImageTarget).LoadAsync(ct);
         await db.Entry(product).Collection(p => p.Stocks).LoadAsync(ct);
         await db.Entry(product).Collection(p => p.ProductCosts).LoadAsync(ct);
@@ -353,7 +404,7 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             .Include(p => p.Brand)
             .Include(p => p.SizeSystem)
             .Include(p => p.Categories)
-            .Include(p => p.Schools)
+            .Include(p => p.ProductSchools)
             .Include(p => p.ProductImageTarget)
             .Include(p => p.Stocks)
             .Include(p => p.ProductCosts)
@@ -461,7 +512,7 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         var product = await db.Products
-            .Include(p => p.Schools)
+            .Include(p => p.ProductSchools)
             .Include(p => p.Stocks)
             .Include(p => p.SalesDetails)
             .Include(p => p.ProductCosts)
@@ -473,7 +524,7 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
 
         // Guard against deleting products with related data
         var conflicts = new List<string>();
-        if (product.Schools.Count > 0) conflicts.Add($"{product.Schools.Count} escuela(s)");
+        if (product.ProductSchools.Count > 0) conflicts.Add($"{product.ProductSchools.Count} escuela(s)");
         if (product.Stocks.Count > 0) conflicts.Add($"{product.Stocks.Count} registro(s) de stock");
         if (product.SalesDetails.Count > 0) conflicts.Add($"{product.SalesDetails.Count} detalle(s) de venta");
         if (product.ProductCosts.Count > 0) conflicts.Add($"{product.ProductCosts.Count} costo(s)");

@@ -142,12 +142,45 @@ export interface ProductSchoolInfo {
   name: string
   schoolLevelId: number
   schoolLevelName: string
+  inventoryItemDefinitionId: number | null
 }
 
 export async function getProductSchools(
   productId: number,
 ): Promise<ProductSchoolInfo[]> {
   return apiClient.get<ProductSchoolInfo[]>(`${BASE}/${productId}/schools`)
+}
+
+// ── Item Definitions (variant-derived items) ─────────────
+
+export interface ItemDefinitionVariantInfo {
+  productVariantId: number
+  variantValue: string
+  systemName: string | null
+}
+
+export interface ItemDefinitionSummary {
+  inventoryItemDefinitionId: number
+  skuCode: string
+  nameSnapshot: string | null
+  isSerialized: boolean
+  isActive: boolean
+  sizeId: number | null
+  sizeValue: string | null
+  hasImage: boolean
+  variants: ItemDefinitionVariantInfo[]
+}
+
+export async function getProductItemDefinitions(
+  productId: number,
+): Promise<ItemDefinitionSummary[]> {
+  return apiClient.get<ItemDefinitionSummary[]>(
+    `${BASE}/${productId}/item-definitions`,
+  )
+}
+
+export function getItemDefinitionImageUrl(itemDefinitionId: number): string {
+  return `/api/images/by-item-definition/${itemDefinitionId}/primary`
 }
 
 // ── Product Price types ──────────────────────────────────

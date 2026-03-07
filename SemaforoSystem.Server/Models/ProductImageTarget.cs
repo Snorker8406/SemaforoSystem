@@ -10,6 +10,7 @@ namespace SemaforoSystem.Server.Models;
 [Index("ProductImageId", Name = "ix_product_image_targets_image")]
 [Index("InventoryItemDefinitionId", "SortOrder", Name = "ix_product_image_targets_item_definition")]
 [Index("ProductId", "SortOrder", Name = "ix_product_image_targets_product")]
+[Index("ProductVisualDefinitionId", "SortOrder", Name = "ix_product_image_targets_visual_def")]
 public partial class ProductImageTarget
 {
     [Key]
@@ -38,6 +39,9 @@ public partial class ProductImageTarget
     [Column("created_at", TypeName = "timestamp without time zone")]
     public DateTime CreatedAt { get; set; }
 
+    [Column("product_visual_definition_id")]
+    public long? ProductVisualDefinitionId { get; set; }
+
     [ForeignKey("InventoryItemDefinitionId")]
     [InverseProperty("ProductImageTarget")]
     public virtual InventoryItemDefinition? InventoryItemDefinition { get; set; }
@@ -49,4 +53,8 @@ public partial class ProductImageTarget
     [ForeignKey("ProductImageId")]
     [InverseProperty("ProductImageTargets")]
     public virtual ProductImage ProductImage { get; set; } = null!;
+
+    [ForeignKey("ProductVisualDefinitionId")]
+    [InverseProperty("ProductImageTarget")]
+    public virtual ProductVisualDefinition? ProductVisualDefinition { get; set; }
 }

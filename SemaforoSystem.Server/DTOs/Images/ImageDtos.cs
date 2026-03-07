@@ -32,6 +32,7 @@ public class ProductImageTargetDto
     public string TargetType { get; set; } = string.Empty;
     public int? ProductId { get; set; }
     public int? InventoryItemDefinitionId { get; set; }
+    public long? ProductVisualDefinitionId { get; set; }
     public int SortOrder { get; set; }
     public bool IsPrimary { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -49,7 +50,7 @@ public class ProductImageTargetDto
 /// </summary>
 public class UploadImageMetadata
 {
-    /// <summary>PRODUCT or ITEM_DEFINITION</summary>
+    /// <summary>PRODUCT, ITEM_DEFINITION or VISUAL_DEFINITION</summary>
     [Required]
     [StringLength(30)]
     public string TargetType { get; set; } = string.Empty;
@@ -59,6 +60,9 @@ public class UploadImageMetadata
 
     /// <summary>Required when target_type = ITEM_DEFINITION</summary>
     public int? InventoryItemDefinitionId { get; set; }
+
+    /// <summary>Required when target_type = VISUAL_DEFINITION</summary>
+    public long? ProductVisualDefinitionId { get; set; }
 
     /// <summary>ORIGINAL, THUMB, DETAIL</summary>
     [StringLength(20)]

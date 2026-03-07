@@ -36,6 +36,7 @@ public class ImagesController(ApplicationDbContext db) : ControllerBase
         TargetType = t.TargetType,
         ProductId = t.ProductId,
         InventoryItemDefinitionId = t.InventoryItemDefinitionId,
+        ProductVisualDefinitionId = t.ProductVisualDefinitionId,
         SortOrder = t.SortOrder,
         IsPrimary = t.IsPrimary,
         CreatedAt = t.CreatedAt,
@@ -66,11 +67,8 @@ public class ImagesController(ApplicationDbContext db) : ControllerBase
 
         // ── Validate target type ──
         var targetType = metadata.TargetType.ToUpperInvariant();
-        if (targetType is not ("PRODUCT" and not "ITEM_DEFINITION"))
-        {
-            if (targetType != "PRODUCT" && targetType != "ITEM_DEFINITION")
-                return BadRequest(new { message = "target_type debe ser PRODUCT o ITEM_DEFINITION." });
-        }
+        if (targetType is not "PRODUCT" and not "ITEM_DEFINITION" and not "VISUAL_DEFINITION")
+            return BadRequest(new { message = "target_type debe ser PRODUCT, ITEM_DEFINITION o VISUAL_DEFINITION." });
 
         // ── Validate FK ──
         if (targetType == "PRODUCT")
@@ -81,13 +79,21 @@ public class ImagesController(ApplicationDbContext db) : ControllerBase
             if (!await db.Products.AnyAsync(p => p.ProductId == metadata.ProductId, ct))
                 return NotFound(new { message = $"Producto con ID {metadata.ProductId} no encontrado." });
         }
-        else // ITEM_DEFINITION
+        else if (targetType == "ITEM_DEFINITION")
         {
             if (metadata.InventoryItemDefinitionId is null)
                 return BadRequest(new { message = "inventory_item_definition_id es requerido cuando target_type = ITEM_DEFINITION." });
 
             if (!await db.InventoryItemDefinitions.AnyAsync(d => d.InventoryItemDefinitionId == metadata.InventoryItemDefinitionId, ct))
                 return NotFound(new { message = $"Definición de artículo con ID {metadata.InventoryItemDefinitionId} no encontrada." });
+        }
+        else // VISUAL_DEFINITION
+        {
+            if (metadata.ProductVisualDefinitionId is null)
+                return BadRequest(new { message = "product_visual_definition_id es requerido cuando target_type = VISUAL_DEFINITION." });
+
+            if (!await db.ProductVisualDefinitions.AnyAsync(d => d.ProductVisualDefinitionId == metadata.ProductVisualDefinitionId, ct))
+                return NotFound(new { message = $"Definición visual con ID {metadata.ProductVisualDefinitionId} no encontrada." });
         }
 
         // ── Read bytes + compute SHA-256 ──
@@ -119,7 +125,7 @@ public class ImagesController(ApplicationDbContext db) : ControllerBase
         // ── If is_primary, clear any existing primary for this target scope ──
         if (metadata.IsPrimary)
         {
-            await ClearPrimaryFlag(targetType, metadata.ProductId, metadata.InventoryItemDefinitionId, ct);
+            await ClearPrimaryFlag(targetType, metadata.ProductId, metadata.InventoryItemDefinitionId, metadata.ProductVisualDefinitionId, ct);
         }
 
         // ── Insert ProductImageTarget ──
@@ -129,6 +135,7 @@ public class ImagesController(ApplicationDbContext db) : ControllerBase
             TargetType = targetType,
             ProductId = targetType == "PRODUCT" ? metadata.ProductId : null,
             InventoryItemDefinitionId = targetType == "ITEM_DEFINITION" ? metadata.InventoryItemDefinitionId : null,
+            ProductVisualDefinitionId = targetType == "VISUAL_DEFINITION" ? metadata.ProductVisualDefinitionId : null,
             SortOrder = metadata.SortOrder,
             IsPrimary = metadata.IsPrimary,
         };
@@ -204,7 +211,7 @@ public class ImagesController(ApplicationDbContext db) : ControllerBase
 
     /// <summary>
     /// Returns images for a specific inventory_item_definition.
-    /// If none found, falls back to product-level images.
+    /// If none found, falls back to visual-definition-level, then product-level images.
     /// </summary>
     [HttpGet("by-item-definition/{itemDefinitionId:int}")]
     [ProducesResponseType(typeof(List<ProductImageTargetDto>), StatusCodes.Status200OK)]
@@ -228,12 +235,96 @@ public class ImagesController(ApplicationDbContext db) : ControllerBase
             .ThenBy(t => t.SortOrder)
             .ToListAsync(ct);
 
-        // Fallback to product-level if none found
+        // Fallback to visual_definition level
+        if (items.Count == 0)
+        {
+            var visualDefId = await db.InventoryItemDefinitions
+                .AsNoTracking()
+                .Where(d => d.InventoryItemDefinitionId == itemDefinitionId)
+                .Select(d => (long?)d.ProductVisualDefinitionId)
+                .FirstOrDefaultAsync(ct);
+
+            if (visualDefId is not null)
+            {
+                var vdQ = db.ProductImageTargets
+                    .Include(t => t.ProductImage)
+                    .AsNoTracking()
+                    .Where(t => t.TargetType == "VISUAL_DEFINITION" && t.ProductVisualDefinitionId == visualDefId);
+
+                if (!string.IsNullOrWhiteSpace(role))
+                    vdQ = vdQ.Where(t => t.ProductImage!.ImageRole == role.ToUpperInvariant());
+
+                items = await vdQ
+                    .OrderByDescending(t => t.IsPrimary)
+                    .ThenBy(t => t.SortOrder)
+                    .ToListAsync(ct);
+            }
+        }
+
+        // Fallback to product level
         if (items.Count == 0)
         {
             var productId = await db.InventoryItemDefinitions
                 .AsNoTracking()
                 .Where(d => d.InventoryItemDefinitionId == itemDefinitionId)
+                .Select(d => (int?)d.ProductId)
+                .FirstOrDefaultAsync(ct);
+
+            if (productId is not null)
+            {
+                var fallbackQ = db.ProductImageTargets
+                    .Include(t => t.ProductImage)
+                    .AsNoTracking()
+                    .Where(t => t.TargetType == "PRODUCT" && t.ProductId == productId);
+
+                if (!string.IsNullOrWhiteSpace(role))
+                    fallbackQ = fallbackQ.Where(t => t.ProductImage!.ImageRole == role.ToUpperInvariant());
+
+                items = await fallbackQ
+                    .OrderByDescending(t => t.IsPrimary)
+                    .ThenBy(t => t.SortOrder)
+                    .ToListAsync(ct);
+            }
+        }
+
+        return Ok(items.Select(MapTargetToDto).ToList());
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Query by Visual Definition (with product-level fallback)
+    // ═══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Returns images for a specific product_visual_definition.
+    /// If none found, falls back to product-level images.
+    /// </summary>
+    [HttpGet("by-visual-definition/{visualDefinitionId:long}")]
+    [ProducesResponseType(typeof(List<ProductImageTargetDto>), StatusCodes.Status200OK)]
+    [AllowAnonymous]
+    public async Task<ActionResult<List<ProductImageTargetDto>>> GetByVisualDefinition(
+        long visualDefinitionId,
+        [FromQuery] string? role,
+        CancellationToken ct)
+    {
+        var q = db.ProductImageTargets
+            .Include(t => t.ProductImage)
+            .AsNoTracking()
+            .Where(t => t.TargetType == "VISUAL_DEFINITION" && t.ProductVisualDefinitionId == visualDefinitionId);
+
+        if (!string.IsNullOrWhiteSpace(role))
+            q = q.Where(t => t.ProductImage!.ImageRole == role.ToUpperInvariant());
+
+        var items = await q
+            .OrderByDescending(t => t.IsPrimary)
+            .ThenBy(t => t.SortOrder)
+            .ToListAsync(ct);
+
+        // Fallback to product level
+        if (items.Count == 0)
+        {
+            var productId = await db.ProductVisualDefinitions
+                .AsNoTracking()
+                .Where(d => d.ProductVisualDefinitionId == visualDefinitionId)
                 .Select(d => (int?)d.ProductId)
                 .FirstOrDefaultAsync(ct);
 
@@ -286,7 +377,7 @@ public class ImagesController(ApplicationDbContext db) : ControllerBase
     }
 
     /// <summary>
-    /// Returns the primary image bytes for an item_definition (with product fallback).
+    /// Returns the primary image bytes for an item_definition (with visual_definition and product fallback).
     /// </summary>
     [HttpGet("by-item-definition/{itemDefinitionId:int}/primary")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -302,6 +393,27 @@ public class ImagesController(ApplicationDbContext db) : ControllerBase
             .OrderByDescending(t => t.IsPrimary)
             .ThenBy(t => t.SortOrder)
             .FirstOrDefaultAsync(ct);
+
+        // Fallback to visual_definition level
+        if (target?.ProductImage is null || target.ProductImage.ImageBytes.Length == 0)
+        {
+            var visualDefId = await db.InventoryItemDefinitions
+                .AsNoTracking()
+                .Where(d => d.InventoryItemDefinitionId == itemDefinitionId)
+                .Select(d => (long?)d.ProductVisualDefinitionId)
+                .FirstOrDefaultAsync(ct);
+
+            if (visualDefId is not null)
+            {
+                target = await db.ProductImageTargets
+                    .Include(t => t.ProductImage)
+                    .AsNoTracking()
+                    .Where(t => t.TargetType == "VISUAL_DEFINITION" && t.ProductVisualDefinitionId == visualDefId)
+                    .OrderByDescending(t => t.IsPrimary)
+                    .ThenBy(t => t.SortOrder)
+                    .FirstOrDefaultAsync(ct);
+            }
+        }
 
         // Fallback to product level
         if (target?.ProductImage is null || target.ProductImage.ImageBytes.Length == 0)
@@ -326,6 +438,50 @@ public class ImagesController(ApplicationDbContext db) : ControllerBase
 
         if (target?.ProductImage is null || target.ProductImage.ImageBytes.Length == 0)
             return NotFound(new { message = "No se encontró imagen para esta configuración." });
+
+        return File(target.ProductImage.ImageBytes, target.ProductImage.ContentType);
+    }
+
+    /// <summary>
+    /// Returns the primary image bytes for a visual_definition (with product fallback).
+    /// </summary>
+    [HttpGet("by-visual-definition/{visualDefinitionId:long}/primary")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetVisualDefinitionPrimaryImage(long visualDefinitionId, CancellationToken ct)
+    {
+        var target = await db.ProductImageTargets
+            .Include(t => t.ProductImage)
+            .AsNoTracking()
+            .Where(t => t.TargetType == "VISUAL_DEFINITION" && t.ProductVisualDefinitionId == visualDefinitionId)
+            .OrderByDescending(t => t.IsPrimary)
+            .ThenBy(t => t.SortOrder)
+            .FirstOrDefaultAsync(ct);
+
+        // Fallback to product level
+        if (target?.ProductImage is null || target.ProductImage.ImageBytes.Length == 0)
+        {
+            var productId = await db.ProductVisualDefinitions
+                .AsNoTracking()
+                .Where(d => d.ProductVisualDefinitionId == visualDefinitionId)
+                .Select(d => (int?)d.ProductId)
+                .FirstOrDefaultAsync(ct);
+
+            if (productId is not null)
+            {
+                target = await db.ProductImageTargets
+                    .Include(t => t.ProductImage)
+                    .AsNoTracking()
+                    .Where(t => t.TargetType == "PRODUCT" && t.ProductId == productId)
+                    .OrderByDescending(t => t.IsPrimary)
+                    .ThenBy(t => t.SortOrder)
+                    .FirstOrDefaultAsync(ct);
+            }
+        }
+
+        if (target?.ProductImage is null || target.ProductImage.ImageBytes.Length == 0)
+            return NotFound(new { message = "No se encontró imagen para esta definición visual." });
 
         return File(target.ProductImage.ImageBytes, target.ProductImage.ContentType);
     }
@@ -357,7 +513,7 @@ public class ImagesController(ApplicationDbContext db) : ControllerBase
 
         if (request.IsPrimary == true)
         {
-            await ClearPrimaryFlag(target.TargetType, target.ProductId, target.InventoryItemDefinitionId, ct);
+            await ClearPrimaryFlag(target.TargetType, target.ProductId, target.InventoryItemDefinitionId, target.ProductVisualDefinitionId, ct);
             target.IsPrimary = true;
         }
         else if (request.IsPrimary == false)
@@ -425,10 +581,10 @@ public class ImagesController(ApplicationDbContext db) : ControllerBase
 
     /// <summary>
     /// Clears the is_primary flag for all targets in the same scope
-    /// (same target_type + same product_id or inventory_item_definition_id).
+    /// (same target_type + same product_id, inventory_item_definition_id, or product_visual_definition_id).
     /// </summary>
     private async Task ClearPrimaryFlag(
-        string targetType, int? productId, int? itemDefinitionId, CancellationToken ct)
+        string targetType, int? productId, int? itemDefinitionId, long? visualDefinitionId, CancellationToken ct)
     {
         List<ProductImageTarget> existing;
 
@@ -442,6 +598,12 @@ public class ImagesController(ApplicationDbContext db) : ControllerBase
         {
             existing = await db.ProductImageTargets
                 .Where(t => t.TargetType == "ITEM_DEFINITION" && t.InventoryItemDefinitionId == itemDefinitionId && t.IsPrimary)
+                .ToListAsync(ct);
+        }
+        else if (targetType == "VISUAL_DEFINITION" && visualDefinitionId is not null)
+        {
+            existing = await db.ProductImageTargets
+                .Where(t => t.TargetType == "VISUAL_DEFINITION" && t.ProductVisualDefinitionId == visualDefinitionId && t.IsPrimary)
                 .ToListAsync(ct);
         }
         else

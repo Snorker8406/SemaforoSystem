@@ -40,12 +40,12 @@ public class SupplyProcessController(ApplicationDbContext db) : ControllerBase
                     .Where(c => c.CategoryId == EscolarCategoryId)
                     .Select(c => c.Name)
                     .FirstOrDefault() ?? "Escolar",
-                SchoolNames = p.Schools
-                    .OrderBy(s => s.Name)
-                    .Select(s => s.SchoolLevel.Name + " " + s.Name)
+                SchoolNames = p.ProductSchools
+                    .OrderBy(ps => ps.School.Name)
+                    .Select(ps => ps.School.SchoolLevel.Name + " " + ps.School.Name)
                     .ToList(),
-                SchoolCount = p.Schools.Count,
-                SchoolCommonProduct = p.Schools.Count >= minSchoolCount,
+                SchoolCount = p.ProductSchools.Count,
+                SchoolCommonProduct = p.ProductSchools.Count >= minSchoolCount,
             })
             .OrderByDescending(p => p.SchoolCount)
             .ThenBy(p => p.Name)
@@ -70,7 +70,7 @@ public class SupplyProcessController(ApplicationDbContext db) : ControllerBase
     {
         var schools = await db.Schools
             .AsNoTracking()
-            .Where(s => s.Products.Any(p => p.Categories.Any(c => c.CategoryId == EscolarCategoryId)))
+            .Where(s => s.ProductSchools.Any(ps => ps.Product.Categories.Any(c => c.CategoryId == EscolarCategoryId)))
             .Select(s => new SchoolWithProductsResponse
             {
                 SchoolId = s.SchoolId,
@@ -79,10 +79,11 @@ public class SupplyProcessController(ApplicationDbContext db) : ControllerBase
                 Address = s.Address,
                 Ciudad = s.Ciudad,
                 State = s.State,
-                ProductCount = s.Products
-                    .Count(p => p.Categories.Any(c => c.CategoryId == EscolarCategoryId)),
-                Products = s.Products
-                    .Where(p => p.Categories.Any(c => c.CategoryId == EscolarCategoryId))
+                ProductCount = s.ProductSchools
+                    .Count(ps => ps.Product.Categories.Any(c => c.CategoryId == EscolarCategoryId)),
+                Products = s.ProductSchools
+                    .Where(ps => ps.Product.Categories.Any(c => c.CategoryId == EscolarCategoryId))
+                    .Select(ps => ps.Product)
                     .Select(p => new SchoolProductResponse
                     {
                         ProductId = p.ProductId,
@@ -92,12 +93,12 @@ public class SupplyProcessController(ApplicationDbContext db) : ControllerBase
                             .Where(c => c.CategoryId == EscolarCategoryId)
                             .Select(c => c.Name)
                             .FirstOrDefault() ?? "Escolar",
-                        SchoolNames = p.Schools
-                            .OrderBy(ps => ps.Name)
-                            .Select(ps => ps.SchoolLevel.Name + " " + ps.Name)
+                        SchoolNames = p.ProductSchools
+                            .OrderBy(ps => ps.School.Name)
+                            .Select(ps => ps.School.SchoolLevel.Name + " " + ps.School.Name)
                             .ToList(),
-                        SchoolCount = p.Schools.Count,
-                        SchoolCommonProduct = p.Schools.Count >= minSchoolCount,
+                        SchoolCount = p.ProductSchools.Count,
+                        SchoolCommonProduct = p.ProductSchools.Count >= minSchoolCount,
                     })
                     .OrderByDescending(p => p.SchoolCount)
                     .ThenBy(p => p.Name)

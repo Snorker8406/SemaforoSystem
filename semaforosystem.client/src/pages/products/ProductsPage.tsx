@@ -2,9 +2,10 @@ import { useState, useCallback, useMemo } from 'react'
 import {
   flexRender,
   getCoreRowModel,
+  getExpandedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import type { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef, Row } from '@tanstack/react-table'
 
 import {
   EditIcon,
@@ -13,11 +14,14 @@ import {
   Trash2Icon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ChevronDownIcon,
   XIcon,
   PackageIcon,
   TagIcon,
   DollarSignIcon,
   WarehouseIcon,
+  Loader2Icon,
+  BoxIcon,
 } from 'lucide-react'
 
 import DashboardLayout from '@/components/layout/dashboard-layout'
@@ -55,9 +59,9 @@ import type {
   BrandLookup,
   CategoryInfo,
 } from '@/services/product-service'
-import { getProductPictureUrl } from '@/services/product-service'
+import { getProductPictureUrl, getItemDefinitionImageUrl } from '@/services/product-service'
 
-import { useProducts, useBrands, useCategories } from '@/hooks/use-products'
+import { useProducts, useBrands, useCategories, useProductItemDefinitions } from '@/hooks/use-products'
 
 import ProductFormDialog from './product-form-dialog'
 import ProductDeleteDialog from './product-delete-dialog'
@@ -118,6 +122,23 @@ function createColumns(ctx: ColumnContext): ColumnDef<ProductResponse>[] {
   }
 
   return [
+    {
+      id: 'expand',
+      header: '',
+      cell: ({ row }) => (
+        <Button
+          variant='ghost'
+          size='icon'
+          className='size-7'
+          onClick={() => row.toggleExpanded()}
+        >
+          <ChevronDownIcon
+            className={`size-4 transition-transform ${row.getIsExpanded() ? 'rotate-180' : ''}`}
+          />
+        </Button>
+      ),
+      size: 36,
+    },
     {
       accessorKey: 'name',
       header: () => (
@@ -381,6 +402,114 @@ function createColumns(ctx: ColumnContext): ColumnDef<ProductResponse>[] {
   ]
 }
 
+// ── Expanded Row Component ───────────────────────────────
+
+function ExpandedProductRow({ row }: { row: Row<ProductResponse> }) {
+  const product = row.original
+  const { data: items, isLoading } = useProductItemDefinitions(product.productId)
+
+  return (
+    <div className='space-y-4 px-6 py-4'>
+      {/* Product extended description */}
+      {(product.description || product.comments) && (
+        <div className='space-y-1'>
+          {product.description && (
+            <p className='text-sm'>
+              <span className='text-muted-foreground font-medium'>Descripción: </span>
+              {product.description}
+            </p>
+          )}
+          {product.comments && (
+            <p className='text-sm'>
+              <span className='text-muted-foreground font-medium'>Comentarios: </span>
+              {product.comments}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Item Definitions sub-list */}
+      <div className='space-y-2'>
+        <h4 className='text-muted-foreground flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide'>
+          <BoxIcon className='size-3.5' />
+          Artículos derivados ({items?.length ?? 0})
+        </h4>
+
+        {isLoading ? (
+          <div className='flex items-center gap-2 py-4'>
+            <Loader2Icon className='text-muted-foreground size-4 animate-spin' />
+            <span className='text-muted-foreground text-sm'>Cargando artículos…</span>
+          </div>
+        ) : items && items.length > 0 ? (
+          <div className='grid gap-2 sm:grid-cols-2 lg:grid-cols-3'>
+            {items.map((item) => (
+              <div
+                key={item.inventoryItemDefinitionId}
+                className='bg-background flex items-start gap-3 rounded-lg border p-3'
+              >
+                {/* Thumbnail */}
+                <div className='shrink-0'>
+                  <img
+                    src={getItemDefinitionImageUrl(item.inventoryItemDefinitionId)}
+                    alt={item.nameSnapshot ?? item.skuCode}
+                    className='size-12 rounded-md border object-cover'
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                      const fallback = e.currentTarget.nextElementSibling as HTMLElement | null
+                      if (fallback) fallback.style.display = 'flex'
+                    }}
+                  />
+                  <div className='bg-muted items-center justify-center rounded-md border' style={{ display: 'none', width: 48, height: 48 }}>
+                    <BoxIcon className='text-muted-foreground size-5' />
+                  </div>
+                </div>
+
+                {/* Details */}
+                <div className='min-w-0 flex-1 space-y-1'>
+                  <div className='flex items-center gap-2'>
+                    <span className='truncate text-sm font-medium'>
+                      {item.nameSnapshot ?? item.skuCode}
+                    </span>
+                    {!item.isActive && (
+                      <Badge variant='outline' className='text-destructive border-destructive/30 text-[10px]'>
+                        Inactivo
+                      </Badge>
+                    )}
+                  </div>
+                  <p className='text-muted-foreground truncate text-xs'>
+                    SKU: {item.skuCode}
+                  </p>
+                  <div className='flex flex-wrap gap-1'>
+                    {item.sizeValue && (
+                      <Badge variant='secondary' className='text-[10px]'>
+                        {item.sizeValue}
+                      </Badge>
+                    )}
+                    {item.variants.map((v) => (
+                      <Badge key={v.productVariantId} variant='outline' className='text-[10px]'>
+                        {v.systemName ? `${v.systemName}: ` : ''}{v.variantValue}
+                      </Badge>
+                    ))}
+                    {item.isSerialized && (
+                      <Badge variant='secondary' className='text-[10px]'>
+                        Serializado
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className='text-muted-foreground py-2 text-sm'>
+            Este producto no tiene artículos derivados.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Page Component ───────────────────────────────────────
 
 export default function ProductsPage() {
@@ -540,8 +669,10 @@ export default function ProductsPage() {
     data: products,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
     manualPagination: true,
     pageCount: totalPages,
+    getRowCanExpand: () => true,
   })
 
   // ── Render ─────────────────────────────────────────
@@ -663,16 +794,25 @@ export default function ProductsPage() {
                     ))
                   ) : table.getRowModel().rows.length > 0 ? (
                     table.getRowModel().rows.map((row) => (
-                      <TableRow key={row.id}>
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell key={cell.id}>
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext(),
-                            )}
-                          </TableCell>
-                        ))}
-                      </TableRow>
+                      <>
+                        <TableRow key={row.id}>
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id}>
+                              {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext(),
+                              )}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        {row.getIsExpanded() && (
+                          <TableRow key={`${row.id}-expanded`}>
+                            <TableCell colSpan={columns.length} className='bg-muted/30 p-0'>
+                              <ExpandedProductRow row={row} />
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </>
                     ))
                   ) : (
                     <TableRow>
@@ -709,7 +849,7 @@ export default function ProductsPage() {
                     value={String(queryParams.pageSize)}
                     onValueChange={handlePageSizeChange}
                   >
-                    <SelectTrigger className='h-8 w-[70px]'>
+                    <SelectTrigger className='h-8 w-17.5'>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>

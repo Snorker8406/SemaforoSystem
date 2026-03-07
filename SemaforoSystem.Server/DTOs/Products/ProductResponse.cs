@@ -58,4 +58,29 @@ public class ProductSchoolInfo
     public string Name { get; set; } = string.Empty;
     public int SchoolLevelId { get; set; }
     public string SchoolLevelName { get; set; } = string.Empty;
+    public int? InventoryItemDefinitionId { get; set; }
+}
+
+/// <summary>
+/// Lightweight summary of an InventoryItemDefinition belonging to a product,
+/// used in the expandable row of the products table.
+/// </summary>
+public class ItemDefinitionSummary
+{
+    public int InventoryItemDefinitionId { get; set; }
+    public string SkuCode { get; set; } = string.Empty;
+    public string? NameSnapshot { get; set; }
+    public bool IsSerialized { get; set; }
+    public bool IsActive { get; set; }
+    public int? SizeId { get; set; }
+    public string? SizeValue { get; set; }
+    public bool HasImage { get; set; }
+    public List<ItemDefinitionVariantInfo> Variants { get; set; } = [];
+}
+
+public class ItemDefinitionVariantInfo
+{
+    public int ProductVariantId { get; set; }
+    public string VariantValue { get; set; } = string.Empty;
+    public string? SystemName { get; set; }
 }
