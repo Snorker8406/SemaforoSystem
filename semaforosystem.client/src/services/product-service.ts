@@ -36,7 +36,6 @@ export interface ProductResponse {
   hasPicture: boolean
   stockTotal: number
   latestCost: number | null
-  latestPrice: number | null
   variantSystems: VariantSystemInfo[]
 }
 
@@ -220,62 +219,4 @@ export async function getProductVisualDefinitions(
   return apiClient.get<VisualDefinitionGroup[]>(
     `${BASE}/${productId}/visual-definitions`,
   )
-}
-
-// ── Product Price types ──────────────────────────────────
-
-export interface ProductPriceResponse {
-  priceId: number
-  productId: number
-  price: number
-  createDate: string
-  sizeId: number | null
-  sizeValue: string | null
-  variantId: number | null
-  variantValue: string | null
-  productComboId: number | null
-}
-
-export interface CreateProductPriceRequest {
-  price: number
-  sizeId?: number | null
-  variantId?: number | null
-  productComboId?: number | null
-}
-
-export interface UpdateProductPriceRequest {
-  price: number
-}
-
-// ── Product Price endpoints ──────────────────────────────
-
-export async function getProductPrices(
-  productId: number,
-): Promise<ProductPriceResponse[]> {
-  return apiClient.get<ProductPriceResponse[]>(`${BASE}/${productId}/prices`)
-}
-
-export async function createProductPrice(
-  productId: number,
-  data: CreateProductPriceRequest,
-): Promise<ProductPriceResponse> {
-  return apiClient.post<ProductPriceResponse>(`${BASE}/${productId}/prices`, data)
-}
-
-export async function updateProductPrice(
-  productId: number,
-  priceId: number,
-  data: UpdateProductPriceRequest,
-): Promise<ProductPriceResponse> {
-  return apiClient.put<ProductPriceResponse>(
-    `${BASE}/${productId}/prices/${priceId}`,
-    data,
-  )
-}
-
-export async function deleteProductPrice(
-  productId: number,
-  priceId: number,
-): Promise<void> {
-  return apiClient.delete(`${BASE}/${productId}/prices/${priceId}`)
 }

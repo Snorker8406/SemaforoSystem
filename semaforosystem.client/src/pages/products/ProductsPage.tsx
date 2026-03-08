@@ -18,7 +18,6 @@ import {
   XIcon,
   PackageIcon,
   TagIcon,
-  DollarSignIcon,
   WarehouseIcon,
   Loader2Icon,
   BoxIcon,
@@ -79,7 +78,6 @@ const SORT_MAP: Record<string, string> = {
   brandName: 'brand',
   model: 'model',
   serialCount: 'serialcount',
-  latestPrice: 'latestprice',
   latestCost: 'latestcost',
   stockTotal: 'stocktotal',
   schoolCount: 'schoolcount',
@@ -284,26 +282,6 @@ function createColumns(ctx: ColumnContext): ColumnDef<ProductResponse>[] {
         <DataTableColumnHeader title='Series' {...headerProps('serialCount')} />
       ),
       cell: ({ row }) => row.original.serialCount ?? '—',
-    },
-    {
-      accessorKey: 'latestPrice',
-      header: () => (
-        <DataTableColumnHeader title='Precio' {...headerProps('latestPrice')} />
-      ),
-      cell: ({ row }) =>
-        row.original.latestPrice != null ? (
-          <div className='flex items-center gap-1'>
-            <DollarSignIcon className='text-emerald-500 size-3.5' />
-            <span className='font-medium'>
-              {row.original.latestPrice.toLocaleString('es-MX', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </span>
-          </div>
-        ) : (
-          <span className='text-muted-foreground'>—</span>
-        ),
     },
     {
       accessorKey: 'latestCost',

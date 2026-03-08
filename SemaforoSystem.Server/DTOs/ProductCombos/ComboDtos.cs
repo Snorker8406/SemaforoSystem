@@ -15,7 +15,6 @@ public class ProductComboResponse
     public bool? Active { get; set; }
     public DateTime? CreateDate { get; set; }
     public int DetailCount { get; set; }
-    public int PriceCount { get; set; }
     public int SchoolCount { get; set; }
     public List<ProductComboDetailResponse> Details { get; set; } = [];
     public List<ComboSchoolInfo> Schools { get; set; } = [];

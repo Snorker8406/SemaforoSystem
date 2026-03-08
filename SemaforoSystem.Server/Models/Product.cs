@@ -68,9 +68,6 @@ public partial class Product
     public virtual ProductImageTarget? ProductImageTarget { get; set; }
 
     [InverseProperty("Product")]
-    public virtual ICollection<ProductPrice> ProductPrices { get; set; } = new List<ProductPrice>();
-
-    [InverseProperty("Product")]
     public virtual ICollection<ProductSchool> ProductSchools { get; set; } = new List<ProductSchool>();
 
     [InverseProperty("Product")]

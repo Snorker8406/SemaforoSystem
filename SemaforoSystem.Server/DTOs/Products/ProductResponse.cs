@@ -31,7 +31,6 @@ public class ProductResponse
     public bool HasPicture { get; set; }
     public int StockTotal { get; set; }
     public decimal? LatestCost { get; set; }
-    public decimal? LatestPrice { get; set; }
 
     // Variant systems
     public List<VariantSystemInfo> VariantSystems { get; set; } = [];

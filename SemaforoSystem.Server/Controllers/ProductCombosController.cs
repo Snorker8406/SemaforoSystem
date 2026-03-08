@@ -25,7 +25,6 @@ public class ProductCombosController(ApplicationDbContext db) : ControllerBase
         Active = combo.Active,
         CreateDate = combo.CreateDate,
         DetailCount = combo.ProductComboDetails.Count,
-        PriceCount = combo.ProductPrices.Count,
         SchoolCount = combo.Schools.Count,
         Details = combo.ProductComboDetails
             .OrderBy(d => d.ProductComboDetailId)
@@ -63,7 +62,6 @@ public class ProductCombosController(ApplicationDbContext db) : ControllerBase
         var q = db.ProductCombos
             .Include(c => c.ProductComboDetails).ThenInclude(d => d.Product)
             .Include(c => c.ProductComboDetails).ThenInclude(d => d.Embroidery)
-            .Include(c => c.ProductPrices)
             .Include(c => c.Schools)
             .AsNoTracking()
             .AsQueryable();
@@ -138,7 +136,6 @@ public class ProductCombosController(ApplicationDbContext db) : ControllerBase
         var combo = await db.ProductCombos
             .Include(c => c.ProductComboDetails).ThenInclude(d => d.Product)
             .Include(c => c.ProductComboDetails).ThenInclude(d => d.Embroidery)
-            .Include(c => c.ProductPrices)
             .Include(c => c.Schools)
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.ProductComboId == id, ct);
@@ -189,7 +186,6 @@ public class ProductCombosController(ApplicationDbContext db) : ControllerBase
         }
 
         await db.Entry(entity).Collection(e => e.ProductComboDetails).LoadAsync(ct);
-        await db.Entry(entity).Collection(e => e.ProductPrices).LoadAsync(ct);
         await db.Entry(entity).Collection(e => e.Schools).LoadAsync(ct);
 
         return CreatedAtAction(nameof(GetById), new { id = entity.ProductComboId }, MapComboToResponse(entity));
@@ -210,7 +206,6 @@ public class ProductCombosController(ApplicationDbContext db) : ControllerBase
         var entity = await db.ProductCombos
             .Include(c => c.ProductComboDetails).ThenInclude(d => d.Product)
             .Include(c => c.ProductComboDetails).ThenInclude(d => d.Embroidery)
-            .Include(c => c.ProductPrices)
             .Include(c => c.Schools)
             .FirstOrDefaultAsync(c => c.ProductComboId == id, ct);
 
@@ -249,7 +244,7 @@ public class ProductCombosController(ApplicationDbContext db) : ControllerBase
 
     // ───────────────────────── DELETE ────────────────────────────────
 
-    /// <summary>Deletes a combo if it has no related prices.</summary>
+    /// <summary>Deletes a combo if it has no related details.</summary>
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -258,18 +253,11 @@ public class ProductCombosController(ApplicationDbContext db) : ControllerBase
     {
         var entity = await db.ProductCombos
             .Include(c => c.ProductComboDetails)
-            .Include(c => c.ProductPrices)
             .Include(c => c.Schools)
             .FirstOrDefaultAsync(c => c.ProductComboId == id, ct);
 
         if (entity is null)
             return NotFound(new { message = $"Combo con ID {id} no encontrado." });
-
-        if (entity.ProductPrices.Count > 0)
-            return Conflict(new
-            {
-                message = $"No se puede eliminar el combo porque tiene {entity.ProductPrices.Count} precio(s) asociado(s). Elimine los precios primero."
-            });
 
         // Remove schools M2M, details, then the header
         entity.Schools.Clear();

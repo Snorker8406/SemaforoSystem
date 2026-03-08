@@ -91,8 +91,6 @@ public partial class ApplicationDbContext : DbContext
 
     public virtual DbSet<ProductImageTarget> ProductImageTargets { get; set; }
 
-    public virtual DbSet<ProductPrice> ProductPrices { get; set; }
-
     public virtual DbSet<ProductProvider> ProductProviders { get; set; }
 
     public virtual DbSet<ProductSchool> ProductSchools { get; set; }
@@ -691,23 +689,6 @@ public partial class ApplicationDbContext : DbContext
             entity.HasOne(d => d.ProductVisualDefinition).WithOne(p => p.ProductImageTarget)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("product_image_targets_visual_def_fkey");
-        });
-
-        modelBuilder.Entity<ProductPrice>(entity =>
-        {
-            entity.HasKey(e => e.PriceId).HasName("product_prices_pkey");
-
-            entity.Property(e => e.PriceId).UseIdentityAlwaysColumn();
-
-            entity.HasOne(d => d.ProductCombo).WithMany(p => p.ProductPrices).HasConstraintName("product_prices_product_combo_id_fkey");
-
-            entity.HasOne(d => d.Product).WithMany(p => p.ProductPrices)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("product_prices_product_id_fkey");
-
-            entity.HasOne(d => d.Size).WithMany(p => p.ProductPrices).HasConstraintName("product_prices_size_id_fkey");
-
-            entity.HasOne(d => d.Variant).WithMany(p => p.ProductPrices).HasConstraintName("product_prices_variant_id_fkey");
         });
 
         modelBuilder.Entity<ProductProvider>(entity =>

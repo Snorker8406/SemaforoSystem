@@ -30,9 +30,6 @@ public partial class ProductCombo
     [InverseProperty("ProductCombo")]
     public virtual ICollection<ProductComboDetail> ProductComboDetails { get; set; } = new List<ProductComboDetail>();
 
-    [InverseProperty("ProductCombo")]
-    public virtual ICollection<ProductPrice> ProductPrices { get; set; } = new List<ProductPrice>();
-
     [ForeignKey("ProductComboId")]
     [InverseProperty("ProductCombos")]
     public virtual ICollection<School> Schools { get; set; } = new List<School>();
