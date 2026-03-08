@@ -71,6 +71,14 @@ public partial class ApplicationDbContext : DbContext
 
     public virtual DbSet<InventoryTransactionLine> InventoryTransactionLines { get; set; }
 
+    public virtual DbSet<PriceItemDefinitionEntry> PriceItemDefinitionEntries { get; set; }
+
+    public virtual DbSet<PriceList> PriceLists { get; set; }
+
+    public virtual DbSet<PriceProductEntry> PriceProductEntries { get; set; }
+
+    public virtual DbSet<PriceVisualDefinitionEntry> PriceVisualDefinitionEntries { get; set; }
+
     public virtual DbSet<Product> Products { get; set; }
 
     public virtual DbSet<ProductCombo> ProductCombos { get; set; }
@@ -123,12 +131,20 @@ public partial class ApplicationDbContext : DbContext
 
     public virtual DbSet<StockExpense> StockExpenses { get; set; }
 
+    public virtual DbSet<VCurrentBasePricesItemDefinition> VCurrentBasePricesItemDefinitions { get; set; }
+
+    public virtual DbSet<VCurrentBasePricesProduct> VCurrentBasePricesProducts { get; set; }
+
+    public virtual DbSet<VCurrentBasePricesVisualDefinition> VCurrentBasePricesVisualDefinitions { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.HasPostgresExtension("btree_gist");
+
         modelBuilder.Entity<Account>(entity =>
         {
             entity.HasKey(e => e.AccountId).HasName("accounts_pkey");
@@ -466,6 +482,56 @@ public partial class ApplicationDbContext : DbContext
                             .ValueGeneratedOnAdd()
                             .HasColumnName("inventory_serial_item_id");
                     });
+        });
+
+        modelBuilder.Entity<PriceItemDefinitionEntry>(entity =>
+        {
+            entity.HasKey(e => e.PriceEntryId).HasName("price_item_definition_entries_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.PriceKind).HasDefaultValueSql("'BASE'::character varying");
+
+            entity.HasOne(d => d.InventoryItemDefinition).WithMany(p => p.PriceItemDefinitionEntries).HasConstraintName("price_item_definition_entries_inventory_item_definition_id_fkey");
+
+            entity.HasOne(d => d.PriceList).WithMany(p => p.PriceItemDefinitionEntries).HasConstraintName("price_item_definition_entries_price_list_id_fkey");
+        });
+
+        modelBuilder.Entity<PriceList>(entity =>
+        {
+            entity.HasKey(e => e.PriceListId).HasName("price_lists_pkey");
+
+            entity.HasIndex(e => e.IsDefault, "ux_price_lists_one_default")
+                .IsUnique()
+                .HasFilter("(is_default = true)");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.Currency).HasDefaultValueSql("'MXN'::character varying");
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()");
+        });
+
+        modelBuilder.Entity<PriceProductEntry>(entity =>
+        {
+            entity.HasKey(e => e.PriceEntryId).HasName("price_product_entries_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.PriceKind).HasDefaultValueSql("'BASE'::character varying");
+
+            entity.HasOne(d => d.PriceList).WithMany(p => p.PriceProductEntries).HasConstraintName("price_product_entries_price_list_id_fkey");
+
+            entity.HasOne(d => d.Product).WithMany(p => p.PriceProductEntries).HasConstraintName("price_product_entries_product_id_fkey");
+        });
+
+        modelBuilder.Entity<PriceVisualDefinitionEntry>(entity =>
+        {
+            entity.HasKey(e => e.PriceEntryId).HasName("price_visual_definition_entries_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.PriceKind).HasDefaultValueSql("'BASE'::character varying");
+
+            entity.HasOne(d => d.PriceList).WithMany(p => p.PriceVisualDefinitionEntries).HasConstraintName("price_visual_definition_entries_price_list_id_fkey");
+
+            entity.HasOne(d => d.ProductVisualDefinition).WithMany(p => p.PriceVisualDefinitionEntries).HasConstraintName("price_visual_definition_entri_product_visual_definition_id_fkey");
         });
 
         modelBuilder.Entity<Product>(entity =>
@@ -878,6 +944,21 @@ public partial class ApplicationDbContext : DbContext
             entity.HasOne(d => d.StockEntry).WithMany(p => p.StockExpenses)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("stock_expenses_stock_entry_id_fkey");
+        });
+
+        modelBuilder.Entity<VCurrentBasePricesItemDefinition>(entity =>
+        {
+            entity.ToView("v_current_base_prices_item_definition");
+        });
+
+        modelBuilder.Entity<VCurrentBasePricesProduct>(entity =>
+        {
+            entity.ToView("v_current_base_prices_product");
+        });
+
+        modelBuilder.Entity<VCurrentBasePricesVisualDefinition>(entity =>
+        {
+            entity.ToView("v_current_base_prices_visual_definition");
         });
 
         OnModelCreatingPartial(modelBuilder);

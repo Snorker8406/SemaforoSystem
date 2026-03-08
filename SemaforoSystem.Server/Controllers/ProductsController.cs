@@ -280,6 +280,252 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
         return Ok(items);
     }
 
+    // ───────────────── GET visual-definitions (grouped) ───────────────
+
+    /// <summary>
+    /// Returns the product's visual definitions, each with its variant info
+    /// and nested item definitions (sizes) including effective prices.
+    /// Price resolution follows: ITEM_DEFINITION → VISUAL_DEFINITION → PRODUCT.
+    /// </summary>
+    [HttpGet("{id:int}/visual-definitions")]
+    [ProducesResponseType(typeof(List<VisualDefinitionGroup>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<List<VisualDefinitionGroup>>> GetVisualDefinitions(
+        int id,
+        [FromQuery] int? priceListId,
+        CancellationToken ct)
+    {
+        var exists = await db.Products.AnyAsync(p => p.ProductId == id, ct);
+        if (!exists)
+            return NotFound(new { message = $"Product with ID {id} was not found." });
+
+        // Resolve price list: use provided or default
+        int resolvedPriceListId;
+        if (priceListId.HasValue)
+        {
+            resolvedPriceListId = priceListId.Value;
+        }
+        else
+        {
+            var defaultList = await db.PriceLists
+                .AsNoTracking()
+                .Where(pl => pl.IsDefault && pl.IsActive)
+                .Select(pl => (int?)pl.PriceListId)
+                .FirstOrDefaultAsync(ct);
+            resolvedPriceListId = defaultList ?? 0;
+        }
+
+        var now = DateTime.UtcNow;
+
+        var groups = await db.ProductVisualDefinitions
+            .AsNoTracking()
+            .Where(vd => vd.ProductId == id)
+            .Include(vd => vd.ProductVariants)
+                .ThenInclude(v => v.ProductVariantSystem)
+            .Include(vd => vd.ProductImageTarget)
+            .Include(vd => vd.InventoryItemDefinitions)
+                .ThenInclude(d => d.Size)
+            .OrderBy(vd => vd.ProductVisualDefinitionId)
+            .Select(vd => new VisualDefinitionGroup
+            {
+                ProductVisualDefinitionId = vd.ProductVisualDefinitionId,
+                VariantsHash = vd.VariantsHash,
+                HasImage = vd.ProductImageTarget != null,
+                Variants = vd.ProductVariants
+                    .OrderBy(v => v.ProductVariantSystem.Name)
+                    .ThenBy(v => v.VariantValue)
+                    .Select(v => new ItemDefinitionVariantInfo
+                    {
+                        ProductVariantId = v.ProductVariantId,
+                        VariantValue = v.VariantValue,
+                        SystemName = v.ProductVariantSystem.Name,
+                    })
+                    .ToList(),
+                Items = vd.InventoryItemDefinitions
+                    .OrderBy(d => d.Size != null ? d.Size.SizeOrder : int.MaxValue)
+                    .ThenBy(d => d.Size != null ? d.Size.SizeValue : "")
+                    .ThenBy(d => d.SkuCode)
+                    .Select(d => new VisualDefinitionItem
+                    {
+                        InventoryItemDefinitionId = d.InventoryItemDefinitionId,
+                        SkuCode = d.SkuCode,
+                        NameSnapshot = d.NameSnapshot,
+                        IsSerialized = d.IsSerialized,
+                        IsActive = d.IsActive,
+                        SizeId = d.SizeId,
+                        SizeValue = d.Size != null ? d.Size.SizeValue : null,
+                        SizeOrder = d.Size != null ? d.Size.SizeOrder : null,
+                    })
+                    .ToList(),
+            })
+            .ToListAsync(ct);
+
+        // Also include item definitions without a visual definition (ungrouped)
+        var ungroupedItems = await db.InventoryItemDefinitions
+            .AsNoTracking()
+            .Where(d => d.ProductId == id && d.ProductVisualDefinitionId == null)
+            .Include(d => d.Size)
+            .OrderBy(d => d.Size != null ? d.Size.SizeOrder : int.MaxValue)
+            .ThenBy(d => d.Size != null ? d.Size.SizeValue : "")
+            .ThenBy(d => d.SkuCode)
+            .Select(d => new VisualDefinitionItem
+            {
+                InventoryItemDefinitionId = d.InventoryItemDefinitionId,
+                SkuCode = d.SkuCode,
+                NameSnapshot = d.NameSnapshot,
+                IsSerialized = d.IsSerialized,
+                IsActive = d.IsActive,
+                SizeId = d.SizeId,
+                SizeValue = d.Size != null ? d.Size.SizeValue : null,
+                SizeOrder = d.Size != null ? d.Size.SizeOrder : null,
+            })
+            .ToListAsync(ct);
+
+        if (ungroupedItems.Count > 0)
+        {
+            groups.Add(new VisualDefinitionGroup
+            {
+                ProductVisualDefinitionId = 0, // sentinel for "no visual definition"
+                VariantsHash = "",
+                HasImage = false,
+                Variants = [],
+                Items = ungroupedItems,
+            });
+        }
+
+        // ── Resolve effective prices for all items ──
+        if (resolvedPriceListId > 0)
+        {
+            // Collect all item definition ids and their visual definition ids
+            var allItems = groups.SelectMany(g => g.Items.Select(i => new
+            {
+                Item = i,
+                VisualDefId = g.ProductVisualDefinitionId > 0 ? (long?)g.ProductVisualDefinitionId : null,
+            })).ToList();
+
+            if (allItems.Count > 0)
+            {
+                var itemDefIds = allItems.Select(x => x.Item.InventoryItemDefinitionId).ToList();
+                var visualDefIds = allItems
+                    .Where(x => x.VisualDefId.HasValue)
+                    .Select(x => x.VisualDefId!.Value)
+                    .Distinct()
+                    .ToList();
+
+                // Batch-load all valid price entries at each scope
+                var itemPrices = await db.PriceItemDefinitionEntries
+                    .AsNoTracking()
+                    .Where(e => e.PriceListId == resolvedPriceListId
+                             && itemDefIds.Contains(e.InventoryItemDefinitionId)
+                             && e.ValidFrom <= now
+                             && (e.ValidTo == null || now < e.ValidTo))
+                    .ToListAsync(ct);
+
+                var visualPrices = visualDefIds.Count > 0
+                    ? await db.PriceVisualDefinitionEntries
+                        .AsNoTracking()
+                        .Where(e => e.PriceListId == resolvedPriceListId
+                                 && visualDefIds.Contains(e.ProductVisualDefinitionId)
+                                 && e.ValidFrom <= now
+                                 && (e.ValidTo == null || now < e.ValidTo))
+                        .ToListAsync(ct)
+                    : [];
+
+                var productPrices = await db.PriceProductEntries
+                    .AsNoTracking()
+                    .Where(e => e.PriceListId == resolvedPriceListId
+                             && e.ProductId == id
+                             && e.ValidFrom <= now
+                             && (e.ValidTo == null || now < e.ValidTo))
+                    .ToListAsync(ct);
+
+                // Resolve per item
+                foreach (var x in allItems)
+                {
+                    // Scope 1: ITEM_DEFINITION
+                    var scope1 = itemPrices
+                        .Where(e => e.InventoryItemDefinitionId == x.Item.InventoryItemDefinitionId)
+                        .OrderByDescending(e => e.PriceKind) // PROMO > BASE
+                        .ThenByDescending(e => e.Priority)
+                        .ThenByDescending(e => e.ValidFrom)
+                        .FirstOrDefault();
+
+                    if (scope1 is not null)
+                    {
+                        ApplyPrice(x.Item, scope1.PriceAmount, scope1.PriceKind, "ITEM_DEFINITION",
+                            scope1.PriceKind == "PROMO" ? scope1.PromoName : null);
+                        if (scope1.PriceKind == "PROMO")
+                        {
+                            var baseAtScope = itemPrices
+                                .Where(e => e.InventoryItemDefinitionId == x.Item.InventoryItemDefinitionId && e.PriceKind == "BASE")
+                                .OrderByDescending(e => e.ValidFrom)
+                                .FirstOrDefault();
+                            x.Item.BasePriceAmount = baseAtScope?.PriceAmount;
+                        }
+                        continue;
+                    }
+
+                    // Scope 2: VISUAL_DEFINITION
+                    if (x.VisualDefId.HasValue)
+                    {
+                        var scope2 = visualPrices
+                            .Where(e => e.ProductVisualDefinitionId == x.VisualDefId.Value)
+                            .OrderByDescending(e => e.PriceKind)
+                            .ThenByDescending(e => e.Priority)
+                            .ThenByDescending(e => e.ValidFrom)
+                            .FirstOrDefault();
+
+                        if (scope2 is not null)
+                        {
+                            ApplyPrice(x.Item, scope2.PriceAmount, scope2.PriceKind, "VISUAL_DEFINITION",
+                                scope2.PriceKind == "PROMO" ? scope2.PromoName : null);
+                            if (scope2.PriceKind == "PROMO")
+                            {
+                                var baseAtScope = visualPrices
+                                    .Where(e => e.ProductVisualDefinitionId == x.VisualDefId.Value && e.PriceKind == "BASE")
+                                    .OrderByDescending(e => e.ValidFrom)
+                                    .FirstOrDefault();
+                                x.Item.BasePriceAmount = baseAtScope?.PriceAmount;
+                            }
+                            continue;
+                        }
+                    }
+
+                    // Scope 3: PRODUCT
+                    var scope3 = productPrices
+                        .OrderByDescending(e => e.PriceKind)
+                        .ThenByDescending(e => e.Priority)
+                        .ThenByDescending(e => e.ValidFrom)
+                        .FirstOrDefault();
+
+                    if (scope3 is not null)
+                    {
+                        ApplyPrice(x.Item, scope3.PriceAmount, scope3.PriceKind, "PRODUCT",
+                            scope3.PriceKind == "PROMO" ? scope3.PromoName : null);
+                        if (scope3.PriceKind == "PROMO")
+                        {
+                            var baseAtScope = productPrices
+                                .Where(e => e.PriceKind == "BASE")
+                                .OrderByDescending(e => e.ValidFrom)
+                                .FirstOrDefault();
+                            x.Item.BasePriceAmount = baseAtScope?.PriceAmount;
+                        }
+                    }
+                }
+            }
+        }
+
+        return Ok(groups);
+
+        static void ApplyPrice(VisualDefinitionItem item, decimal amount, string kind, string scope, string? promoName)
+        {
+            item.PriceAmount = amount;
+            item.PriceKind = kind;
+            item.PriceScope = scope;
+            item.PromoName = promoName;
+        }
+    }
+
     // ───────────────────────────── POST create ─────────────────────────
 
     /// <summary>

@@ -183,6 +183,45 @@ export function getItemDefinitionImageUrl(itemDefinitionId: number): string {
   return `/api/images/by-item-definition/${itemDefinitionId}/primary`
 }
 
+export function getVisualDefinitionImageUrl(visualDefinitionId: number): string {
+  return `/api/images/by-visual-definition/${visualDefinitionId}/primary`
+}
+
+// ── Visual Definitions (grouped by variant combination) ──
+
+export interface VisualDefinitionItem {
+  inventoryItemDefinitionId: number
+  skuCode: string
+  nameSnapshot: string | null
+  isSerialized: boolean
+  isActive: boolean
+  sizeId: number | null
+  sizeValue: string | null
+  sizeOrder: number | null
+  // Effective price (resolved via ITEM_DEF → VISUAL_DEF → PRODUCT)
+  priceAmount: number | null
+  priceKind: string | null
+  priceScope: string | null
+  basePriceAmount: number | null
+  promoName: string | null
+}
+
+export interface VisualDefinitionGroup {
+  productVisualDefinitionId: number
+  variantsHash: string
+  variants: ItemDefinitionVariantInfo[]
+  hasImage: boolean
+  items: VisualDefinitionItem[]
+}
+
+export async function getProductVisualDefinitions(
+  productId: number,
+): Promise<VisualDefinitionGroup[]> {
+  return apiClient.get<VisualDefinitionGroup[]>(
+    `${BASE}/${productId}/visual-definitions`,
+  )
+}
+
 // ── Product Price types ──────────────────────────────────
 
 export interface ProductPriceResponse {

@@ -56,6 +56,9 @@ public partial class Product
     public virtual ICollection<InventoryItemDefinition> InventoryItemDefinitions { get; set; } = new List<InventoryItemDefinition>();
 
     [InverseProperty("Product")]
+    public virtual ICollection<PriceProductEntry> PriceProductEntries { get; set; } = new List<PriceProductEntry>();
+
+    [InverseProperty("Product")]
     public virtual ICollection<ProductComboDetail> ProductComboDetails { get; set; } = new List<ProductComboDetail>();
 
     [InverseProperty("Product")]

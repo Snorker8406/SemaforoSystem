@@ -28,6 +28,9 @@ public partial class ProductVisualDefinition
     [InverseProperty("ProductVisualDefinition")]
     public virtual ICollection<InventoryItemDefinition> InventoryItemDefinitions { get; set; } = new List<InventoryItemDefinition>();
 
+    [InverseProperty("ProductVisualDefinition")]
+    public virtual ICollection<PriceVisualDefinitionEntry> PriceVisualDefinitionEntries { get; set; } = new List<PriceVisualDefinitionEntry>();
+
     [ForeignKey("ProductId")]
     [InverseProperty("ProductVisualDefinitions")]
     public virtual Product Product { get; set; } = null!;

@@ -84,3 +84,47 @@ public class ItemDefinitionVariantInfo
     public string VariantValue { get; set; } = string.Empty;
     public string? SystemName { get; set; }
 }
+
+// ── Visual Definitions (grouped by variant combination) ──
+
+/// <summary>
+/// A visual definition groups item definitions that share the same variant combination
+/// but differ only by size. Each card in the UI represents one visual definition.
+/// </summary>
+public class VisualDefinitionGroup
+{
+    public long ProductVisualDefinitionId { get; set; }
+    public string VariantsHash { get; set; } = string.Empty;
+    public List<ItemDefinitionVariantInfo> Variants { get; set; } = [];
+    public bool HasImage { get; set; }
+    /// <summary>Item definitions (sizes) under this visual definition.</summary>
+    public List<VisualDefinitionItem> Items { get; set; } = [];
+}
+
+/// <summary>
+/// An item definition within a visual definition group (size-level detail).
+/// Includes the effective price resolved via ITEM_DEF → VISUAL_DEF → PRODUCT fallback.
+/// </summary>
+public class VisualDefinitionItem
+{
+    public int InventoryItemDefinitionId { get; set; }
+    public string SkuCode { get; set; } = string.Empty;
+    public string? NameSnapshot { get; set; }
+    public bool IsSerialized { get; set; }
+    public bool IsActive { get; set; }
+    public int? SizeId { get; set; }
+    public string? SizeValue { get; set; }
+    public int? SizeOrder { get; set; }
+
+    // ── Effective price (resolved per item definition) ──
+    /// <summary>The effective price amount, or null if no price is set.</summary>
+    public decimal? PriceAmount { get; set; }
+    /// <summary>BASE or PROMO.</summary>
+    public string? PriceKind { get; set; }
+    /// <summary>Which scope resolved: ITEM_DEFINITION, VISUAL_DEFINITION, or PRODUCT.</summary>
+    public string? PriceScope { get; set; }
+    /// <summary>When a PROMO is active, the BASE price for strikethrough display.</summary>
+    public decimal? BasePriceAmount { get; set; }
+    /// <summary>Promo name if applicable.</summary>
+    public string? PromoName { get; set; }
+}

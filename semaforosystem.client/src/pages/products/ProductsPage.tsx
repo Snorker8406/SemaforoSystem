@@ -22,6 +22,7 @@ import {
   WarehouseIcon,
   Loader2Icon,
   BoxIcon,
+  RulerIcon,
 } from 'lucide-react'
 
 import DashboardLayout from '@/components/layout/dashboard-layout'
@@ -46,6 +47,11 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -59,9 +65,9 @@ import type {
   BrandLookup,
   CategoryInfo,
 } from '@/services/product-service'
-import { getProductPictureUrl, getItemDefinitionImageUrl } from '@/services/product-service'
+import { getProductPictureUrl, getVisualDefinitionImageUrl } from '@/services/product-service'
 
-import { useProducts, useBrands, useCategories, useProductItemDefinitions } from '@/hooks/use-products'
+import { useProducts, useBrands, useCategories, useProductVisualDefinitions } from '@/hooks/use-products'
 
 import ProductFormDialog from './product-form-dialog'
 import ProductDeleteDialog from './product-delete-dialog'
@@ -406,7 +412,7 @@ function createColumns(ctx: ColumnContext): ColumnDef<ProductResponse>[] {
 
 function ExpandedProductRow({ row }: { row: Row<ProductResponse> }) {
   const product = row.original
-  const { data: items, isLoading } = useProductItemDefinitions(product.productId)
+  const { data: groups, isLoading } = useProductVisualDefinitions(product.productId)
 
   return (
     <div className='space-y-4 px-6 py-4'>
@@ -428,11 +434,11 @@ function ExpandedProductRow({ row }: { row: Row<ProductResponse> }) {
         </div>
       )}
 
-      {/* Item Definitions sub-list */}
+      {/* Visual Definition groups */}
       <div className='space-y-2'>
         <h4 className='text-muted-foreground flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide'>
           <BoxIcon className='size-3.5' />
-          Artículos derivados ({items?.length ?? 0})
+          Artículos derivados ({groups?.reduce((sum, g) => sum + g.items.length, 0) ?? 0})
         </h4>
 
         {isLoading ? (
@@ -440,64 +446,14 @@ function ExpandedProductRow({ row }: { row: Row<ProductResponse> }) {
             <Loader2Icon className='text-muted-foreground size-4 animate-spin' />
             <span className='text-muted-foreground text-sm'>Cargando artículos…</span>
           </div>
-        ) : items && items.length > 0 ? (
-          <div className='grid gap-2 sm:grid-cols-2 lg:grid-cols-3'>
-            {items.map((item) => (
-              <div
-                key={item.inventoryItemDefinitionId}
-                className='bg-background flex items-start gap-3 rounded-lg border p-3'
-              >
-                {/* Thumbnail */}
-                <div className='shrink-0'>
-                  <img
-                    src={getItemDefinitionImageUrl(item.inventoryItemDefinitionId)}
-                    alt={item.nameSnapshot ?? item.skuCode}
-                    className='size-12 rounded-md border object-cover'
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none'
-                      const fallback = e.currentTarget.nextElementSibling as HTMLElement | null
-                      if (fallback) fallback.style.display = 'flex'
-                    }}
-                  />
-                  <div className='bg-muted items-center justify-center rounded-md border' style={{ display: 'none', width: 48, height: 48 }}>
-                    <BoxIcon className='text-muted-foreground size-5' />
-                  </div>
-                </div>
-
-                {/* Details */}
-                <div className='min-w-0 flex-1 space-y-1'>
-                  <div className='flex items-center gap-2'>
-                    <span className='truncate text-sm font-medium'>
-                      {item.nameSnapshot ?? item.skuCode}
-                    </span>
-                    {!item.isActive && (
-                      <Badge variant='outline' className='text-destructive border-destructive/30 text-[10px]'>
-                        Inactivo
-                      </Badge>
-                    )}
-                  </div>
-                  <p className='text-muted-foreground truncate text-xs'>
-                    SKU: {item.skuCode}
-                  </p>
-                  <div className='flex flex-wrap gap-1'>
-                    {item.sizeValue && (
-                      <Badge variant='secondary' className='text-[10px]'>
-                        {item.sizeValue}
-                      </Badge>
-                    )}
-                    {item.variants.map((v) => (
-                      <Badge key={v.productVariantId} variant='outline' className='text-[10px]'>
-                        {v.systemName ? `${v.systemName}: ` : ''}{v.variantValue}
-                      </Badge>
-                    ))}
-                    {item.isSerialized && (
-                      <Badge variant='secondary' className='text-[10px]'>
-                        Serializado
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
+        ) : groups && groups.length > 0 ? (
+          <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3'>
+            {groups.map((group) => (
+              <VisualDefinitionCard
+                key={group.productVisualDefinitionId}
+                group={group}
+                productId={product.productId}
+              />
             ))}
           </div>
         ) : (
@@ -506,6 +462,131 @@ function ExpandedProductRow({ row }: { row: Row<ProductResponse> }) {
           </p>
         )}
       </div>
+    </div>
+  )
+}
+
+// ── Visual Definition Card (variant group with collapsible sizes) ────
+
+function VisualDefinitionCard({
+  group,
+  productId,
+}: {
+  group: import('@/services/product-service').VisualDefinitionGroup
+  productId: number
+}) {
+  const [sizesOpen, setSizesOpen] = useState(false)
+  const isUngrouped = group.productVisualDefinitionId === 0
+
+  // Use visual definition image, or fallback to product image
+  const imageUrl = isUngrouped
+    ? getProductPictureUrl(productId)
+    : getVisualDefinitionImageUrl(group.productVisualDefinitionId)
+
+  return (
+    <div className='bg-background overflow-hidden rounded-lg border'>
+      {/* Card header: image + variant badges */}
+      <div className='flex items-start gap-3 p-3'>
+        {/* Thumbnail */}
+        <div className='shrink-0'>
+          <img
+            src={imageUrl}
+            alt={isUngrouped ? 'Sin variantes' : group.variants.map((v) => v.variantValue).join(' / ')}
+            className='size-14 rounded-md border object-cover'
+            onError={(e) => {
+              e.currentTarget.style.display = 'none'
+              const fallback = e.currentTarget.nextElementSibling as HTMLElement | null
+              if (fallback) fallback.style.display = 'flex'
+            }}
+          />
+          <div
+            className='bg-muted items-center justify-center rounded-md border'
+            style={{ display: 'none', width: 56, height: 56 }}
+          >
+            <BoxIcon className='text-muted-foreground size-5' />
+          </div>
+        </div>
+
+        {/* Variant info */}
+        <div className='min-w-0 flex-1 space-y-1.5'>
+          {isUngrouped ? (
+            <span className='text-muted-foreground text-sm font-medium'>Sin variantes</span>
+          ) : (
+            <div className='flex flex-wrap gap-1'>
+              {group.variants.map((v) => (
+                <Badge key={v.productVariantId} variant='outline' className='text-[10px]'>
+                  {v.systemName ? `${v.systemName}: ` : ''}{v.variantValue}
+                </Badge>
+              ))}
+            </div>
+          )}
+          <p className='text-muted-foreground text-xs'>
+            {group.items.length} {group.items.length === 1 ? 'talla' : 'tallas'}
+          </p>
+        </div>
+      </div>
+
+      {/* Collapsible sizes section */}
+      <Collapsible open={sizesOpen} onOpenChange={setSizesOpen}>
+        <CollapsibleTrigger asChild>
+          <button
+            className='hover:bg-muted/50 flex w-full items-center justify-between border-t px-3 py-2 text-xs font-medium transition-colors'
+          >
+            <span className='flex items-center gap-1.5'>
+              <RulerIcon className='size-3' />
+              Tallas y precios
+            </span>
+            <ChevronDownIcon
+              className={`size-3.5 transition-transform duration-200 ${sizesOpen ? 'rotate-180' : ''}`}
+            />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className='divide-y border-t'>
+            {group.items.map((item) => (
+              <div
+                key={item.inventoryItemDefinitionId}
+                className='flex items-center justify-between px-3 py-2'
+              >
+                <div className='flex items-center gap-2'>
+                  <span className='text-sm font-medium'>
+                    {item.sizeValue ?? 'Única'}
+                  </span>
+                  {!item.isActive && (
+                    <Badge variant='outline' className='text-destructive border-destructive/30 text-[10px]'>
+                      Inactivo
+                    </Badge>
+                  )}
+                  <span className='text-muted-foreground text-[10px]'>
+                    {item.skuCode}
+                  </span>
+                </div>
+                <div className='flex items-center gap-1.5'>
+                  {item.priceAmount != null ? (
+                    <>
+                      {item.priceKind === 'PROMO' && item.basePriceAmount != null && (
+                        <span className='text-muted-foreground text-xs line-through'>
+                          ${item.basePriceAmount.toFixed(2)}
+                        </span>
+                      )}
+                      <span className={`text-sm font-semibold ${item.priceKind === 'PROMO' ? 'text-green-600 dark:text-green-400' : ''}`}>
+                        ${item.priceAmount.toFixed(2)}
+                      </span>
+                      {item.priceKind === 'PROMO' && item.promoName && (
+                        <Badge variant='secondary' className='text-[9px]'>
+                          {item.promoName}
+                        </Badge>
+                      )}
+                    </>
+                  ) : (
+                    <span className='text-muted-foreground text-xs italic'>Sin precio</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   )
 }

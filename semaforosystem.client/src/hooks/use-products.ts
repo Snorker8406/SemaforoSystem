@@ -22,6 +22,7 @@ import {
   updateProductPrice,
   deleteProductPrice,
   getProductItemDefinitions,
+  getProductVisualDefinitions,
 } from '@/services/product-service'
 import { ApiError } from '@/lib/api-client'
 
@@ -38,6 +39,7 @@ export const productKeys = {
   prices: (productId: number) => [...productKeys.all, 'prices', productId] as const,
   schools: (productId: number) => [...productKeys.all, 'schools', productId] as const,
   itemDefinitions: (productId: number) => [...productKeys.all, 'item-definitions', productId] as const,
+  visualDefinitions: (productId: number) => [...productKeys.all, 'visual-definitions', productId] as const,
 }
 
 // ── Queries ──────────────────────────────────────────────
@@ -93,6 +95,16 @@ export function useProductItemDefinitions(productId: number | null | undefined) 
   return useQuery({
     queryKey: productKeys.itemDefinitions(productId!),
     queryFn: () => getProductItemDefinitions(productId!),
+    enabled: productId != null,
+    staleTime: 5 * 60 * 1000, // 5 min
+  })
+}
+
+/** Visual definitions grouped with their item definitions (sizes) */
+export function useProductVisualDefinitions(productId: number | null | undefined) {
+  return useQuery({
+    queryKey: productKeys.visualDefinitions(productId!),
+    queryFn: () => getProductVisualDefinitions(productId!),
     enabled: productId != null,
     staleTime: 5 * 60 * 1000, // 5 min
   })

@@ -56,6 +56,9 @@ public partial class InventoryItemDefinition
     [InverseProperty("InventoryItemDefinition")]
     public virtual ICollection<InventoryTransactionLine> InventoryTransactionLines { get; set; } = new List<InventoryTransactionLine>();
 
+    [InverseProperty("InventoryItemDefinition")]
+    public virtual ICollection<PriceItemDefinitionEntry> PriceItemDefinitionEntries { get; set; } = new List<PriceItemDefinitionEntry>();
+
     [ForeignKey("ProductId")]
     [InverseProperty("InventoryItemDefinitions")]
     public virtual Product Product { get; set; } = null!;
