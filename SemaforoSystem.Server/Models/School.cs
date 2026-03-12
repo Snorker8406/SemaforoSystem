@@ -64,7 +64,7 @@ public partial class School
     public virtual ICollection<File> Files { get; set; } = new List<File>();
 
     [InverseProperty("School")]
-    public virtual ICollection<ProductSchool> ProductSchools { get; set; } = new List<ProductSchool>();
+    public virtual ICollection<ProductVisualDefinitionSchool> ProductVisualDefinitionSchools { get; set; } = new List<ProductVisualDefinitionSchool>();
 
     [ForeignKey("SchoolLevelId")]
     [InverseProperty("Schools")]

@@ -22,6 +22,7 @@ import {
   Loader2Icon,
   BoxIcon,
   RulerIcon,
+  GraduationCapIcon,
 } from 'lucide-react'
 
 import DashboardLayout from '@/components/layout/dashboard-layout'
@@ -503,6 +504,18 @@ function VisualDefinitionCard({
           </p>
         </div>
       </div>
+
+      {/* Schools linked to this visual definition */}
+      {group.schools.length > 0 && (
+        <div className='flex flex-wrap items-center gap-1.5 border-t px-3 py-2'>
+          <GraduationCapIcon className='text-muted-foreground size-3' />
+          {group.schools.map((s) => (
+            <Badge key={s.schoolId} variant='secondary' className='text-[10px]'>
+              {s.schoolLevelName} — {s.name}
+            </Badge>
+          ))}
+        </div>
+      )}
 
       {/* Collapsible sizes section */}
       <Collapsible open={sizesOpen} onOpenChange={setSizesOpen}>

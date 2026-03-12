@@ -66,9 +66,6 @@ public partial class InventoryItemDefinition
     [InverseProperty("InventoryItemDefinition")]
     public virtual ProductImageTarget? ProductImageTarget { get; set; }
 
-    [InverseProperty("InventoryItemDefinition")]
-    public virtual ICollection<ProductSchool> ProductSchools { get; set; } = new List<ProductSchool>();
-
     [ForeignKey("ProductVisualDefinitionId")]
     [InverseProperty("InventoryItemDefinitions")]
     public virtual ProductVisualDefinition? ProductVisualDefinition { get; set; }

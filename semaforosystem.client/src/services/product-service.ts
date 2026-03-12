@@ -141,7 +141,7 @@ export interface ProductSchoolInfo {
   name: string
   schoolLevelId: number
   schoolLevelName: string
-  inventoryItemDefinitionId: number | null
+  productVisualDefinitionId: number
 }
 
 export async function getProductSchools(
@@ -205,12 +205,19 @@ export interface VisualDefinitionItem {
   promoName: string | null
 }
 
+export interface VisualDefinitionSchoolInfo {
+  schoolId: number
+  name: string
+  schoolLevelName: string
+}
+
 export interface VisualDefinitionGroup {
   productVisualDefinitionId: number
   variantsHash: string
   variants: ItemDefinitionVariantInfo[]
   hasImage: boolean
   items: VisualDefinitionItem[]
+  schools: VisualDefinitionSchoolInfo[]
 }
 
 export async function getProductVisualDefinitions(

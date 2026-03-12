@@ -35,7 +35,11 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             CategoryId = c.CategoryId,
             Name = c.Name,
         }).ToList(),
-        SchoolCount = product.ProductSchools.Count,
+        SchoolCount = product.ProductVisualDefinitions
+            .SelectMany(vd => vd.ProductVisualDefinitionSchools)
+            .Select(pvds => pvds.SchoolId)
+            .Distinct()
+            .Count(),
         HasPicture = product.ProductImageTarget is not null,
         StockTotal = product.Stocks.Sum(s => s.Quantity ?? 0),
         LatestCost = product.ProductCosts
@@ -64,7 +68,8 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             .Include(p => p.Brand)
             .Include(p => p.SizeSystem)
             .Include(p => p.Categories)
-            .Include(p => p.ProductSchools)
+            .Include(p => p.ProductVisualDefinitions)
+                .ThenInclude(vd => vd.ProductVisualDefinitionSchools)
             .Include(p => p.ProductImageTarget)
             .Include(p => p.Stocks)
             .Include(p => p.ProductCosts)
@@ -80,9 +85,9 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             q = q.Where(p => p.Categories.Any(c => c.CategoryId == query.CategoryId.Value));
 
         if (query.HasSchools == true)
-            q = q.Where(p => p.ProductSchools.Any());
+            q = q.Where(p => p.ProductVisualDefinitions.Any(vd => vd.ProductVisualDefinitionSchools.Any()));
         else if (query.HasSchools == false)
-            q = q.Where(p => !p.ProductSchools.Any());
+            q = q.Where(p => !p.ProductVisualDefinitions.Any(vd => vd.ProductVisualDefinitionSchools.Any()));
 
         if (!string.IsNullOrWhiteSpace(query.Model))
         {
@@ -128,8 +133,8 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
                 ? q.OrderByDescending(p => p.Model)
                 : q.OrderBy(p => p.Model),
             "schoolcount" => query.SortDescending
-                ? q.OrderByDescending(p => p.ProductSchools.Count)
-                : q.OrderBy(p => p.ProductSchools.Count),
+                ? q.OrderByDescending(p => p.ProductVisualDefinitions.SelectMany(vd => vd.ProductVisualDefinitionSchools).Select(pvds => pvds.SchoolId).Distinct().Count())
+                : q.OrderBy(p => p.ProductVisualDefinitions.SelectMany(vd => vd.ProductVisualDefinitionSchools).Select(pvds => pvds.SchoolId).Distinct().Count()),
             "stocktotal" => query.SortDescending
                 ? q.OrderByDescending(p => p.Stocks.Sum(s => s.Quantity ?? 0))
                 : q.OrderBy(p => p.Stocks.Sum(s => s.Quantity ?? 0)),
@@ -170,7 +175,8 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             .Include(p => p.Brand)
             .Include(p => p.SizeSystem)
             .Include(p => p.Categories)
-            .Include(p => p.ProductSchools)
+            .Include(p => p.ProductVisualDefinitions)
+                .ThenInclude(vd => vd.ProductVisualDefinitionSchools)
             .Include(p => p.ProductImageTarget)
             .Include(p => p.Stocks)
             .Include(p => p.ProductCosts)
@@ -187,38 +193,43 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
     // ───────────────────────────── GET schools ─────────────────────────
 
     /// <summary>
-    /// Returns the schools (with school level) that use this product.
+    /// Returns the schools (with school level) linked via visual definitions for this product.
     /// </summary>
     [HttpGet("{id:int}/schools")]
     [ProducesResponseType(typeof(List<ProductSchoolInfo>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<List<ProductSchoolInfo>>> GetSchools(int id, CancellationToken ct)
     {
-        var product = await db.Products
-            .AsNoTracking()
-            .Where(p => p.ProductId == id)
-            .Select(p => new
-            {
-                p.ProductId,
-                Schools = p.ProductSchools
-                    .OrderBy(ps => ps.School.SchoolLevel.Name)
-                    .ThenBy(ps => ps.School.Name)
-                    .Select(ps => new ProductSchoolInfo
-                    {
-                        SchoolId = ps.SchoolId,
-                        Name = ps.School.Name,
-                        SchoolLevelId = ps.School.SchoolLevelId,
-                        SchoolLevelName = ps.School.SchoolLevel.Name,
-                        InventoryItemDefinitionId = ps.InventoryItemDefinitionId,
-                    })
-                    .ToList(),
-            })
-            .FirstOrDefaultAsync(ct);
-
-        if (product is null)
+        var exists = await db.Products.AnyAsync(p => p.ProductId == id, ct);
+        if (!exists)
             return NotFound(new { message = $"Product with ID {id} was not found." });
 
-        return Ok(product.Schools);
+        var schools = await db.ProductVisualDefinitionSchools
+            .AsNoTracking()
+            .Where(pvds => pvds.ProductVisualDefinition.ProductId == id && pvds.IsActive)
+            .Select(pvds => new
+            {
+                pvds.SchoolId,
+                pvds.School.Name,
+                pvds.School.SchoolLevelId,
+                SchoolLevelName = pvds.School.SchoolLevel.Name,
+                pvds.ProductVisualDefinitionId,
+            })
+            .Distinct()
+            .OrderBy(s => s.SchoolLevelName)
+            .ThenBy(s => s.Name)
+            .ToListAsync(ct);
+
+        var result = schools.Select(s => new ProductSchoolInfo
+        {
+            SchoolId = s.SchoolId,
+            Name = s.Name,
+            SchoolLevelId = s.SchoolLevelId,
+            SchoolLevelName = s.SchoolLevelName,
+            ProductVisualDefinitionId = s.ProductVisualDefinitionId,
+        }).ToList();
+
+        return Ok(result);
     }
 
     // ───────────────────── GET item-definitions ────────────────────────
@@ -316,6 +327,9 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             .Include(vd => vd.ProductImageTarget)
             .Include(vd => vd.InventoryItemDefinitions)
                 .ThenInclude(d => d.Size)
+            .Include(vd => vd.ProductVisualDefinitionSchools)
+                .ThenInclude(pvds => pvds.School)
+                    .ThenInclude(s => s.SchoolLevel)
             .OrderBy(vd => vd.ProductVisualDefinitionId)
             .Select(vd => new VisualDefinitionGroup
             {
@@ -330,6 +344,17 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
                         ProductVariantId = v.ProductVariantId,
                         VariantValue = v.VariantValue,
                         SystemName = v.ProductVariantSystem.Name,
+                    })
+                    .ToList(),
+                Schools = vd.ProductVisualDefinitionSchools
+                    .Where(pvds => pvds.IsActive)
+                    .OrderBy(pvds => pvds.School.SchoolLevel.Name)
+                    .ThenBy(pvds => pvds.School.Name)
+                    .Select(pvds => new VisualDefinitionSchoolInfo
+                    {
+                        SchoolId = pvds.SchoolId,
+                        Name = pvds.School.Name,
+                        SchoolLevelName = pvds.School.SchoolLevel.Name,
                     })
                     .ToList(),
                 Items = vd.InventoryItemDefinitions
@@ -613,7 +638,7 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
         await db.Entry(product).Reference(p => p.Brand).LoadAsync(ct);
         await db.Entry(product).Reference(p => p.SizeSystem).LoadAsync(ct);
         await db.Entry(product).Collection(p => p.Categories).LoadAsync(ct);
-        await db.Entry(product).Collection(p => p.ProductSchools).LoadAsync(ct);
+        await db.Entry(product).Collection(p => p.ProductVisualDefinitions).LoadAsync(ct);
         await db.Entry(product).Reference(p => p.ProductImageTarget).LoadAsync(ct);
         await db.Entry(product).Collection(p => p.Stocks).LoadAsync(ct);
         await db.Entry(product).Collection(p => p.ProductCosts).LoadAsync(ct);
@@ -640,7 +665,8 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             .Include(p => p.Brand)
             .Include(p => p.SizeSystem)
             .Include(p => p.Categories)
-            .Include(p => p.ProductSchools)
+            .Include(p => p.ProductVisualDefinitions)
+                .ThenInclude(vd => vd.ProductVisualDefinitionSchools)
             .Include(p => p.ProductImageTarget)
             .Include(p => p.Stocks)
             .Include(p => p.ProductCosts)
@@ -747,7 +773,8 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         var product = await db.Products
-            .Include(p => p.ProductSchools)
+            .Include(p => p.ProductVisualDefinitions)
+                .ThenInclude(vd => vd.ProductVisualDefinitionSchools)
             .Include(p => p.Stocks)
             .Include(p => p.SalesDetails)
             .Include(p => p.ProductCosts)
@@ -758,7 +785,12 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
 
         // Guard against deleting products with related data
         var conflicts = new List<string>();
-        if (product.ProductSchools.Count > 0) conflicts.Add($"{product.ProductSchools.Count} escuela(s)");
+        var schoolCount = product.ProductVisualDefinitions
+            .SelectMany(vd => vd.ProductVisualDefinitionSchools)
+            .Select(pvds => pvds.SchoolId)
+            .Distinct()
+            .Count();
+        if (schoolCount > 0) conflicts.Add($"{schoolCount} escuela(s)");
         if (product.Stocks.Count > 0) conflicts.Add($"{product.Stocks.Count} registro(s) de stock");
         if (product.SalesDetails.Count > 0) conflicts.Add($"{product.SalesDetails.Count} detalle(s) de venta");
         if (product.ProductCosts.Count > 0) conflicts.Add($"{product.ProductCosts.Count} costo(s)");

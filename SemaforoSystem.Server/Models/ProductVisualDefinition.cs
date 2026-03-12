@@ -38,6 +38,9 @@ public partial class ProductVisualDefinition
     [InverseProperty("ProductVisualDefinition")]
     public virtual ProductImageTarget? ProductImageTarget { get; set; }
 
+    [InverseProperty("ProductVisualDefinition")]
+    public virtual ICollection<ProductVisualDefinitionSchool> ProductVisualDefinitionSchools { get; set; } = new List<ProductVisualDefinitionSchool>();
+
     [ForeignKey("ProductVisualDefinitionId")]
     [InverseProperty("ProductVisualDefinitions")]
     public virtual ICollection<ProductVariant> ProductVariants { get; set; } = new List<ProductVariant>();

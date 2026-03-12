@@ -50,6 +50,7 @@ public class VariantSystemInfo
 
 /// <summary>
 /// School info with its school level, returned by the /schools sub-resource.
+/// Now linked through product_visual_definition_schools.
 /// </summary>
 public class ProductSchoolInfo
 {
@@ -57,7 +58,7 @@ public class ProductSchoolInfo
     public string Name { get; set; } = string.Empty;
     public int SchoolLevelId { get; set; }
     public string SchoolLevelName { get; set; } = string.Empty;
-    public int? InventoryItemDefinitionId { get; set; }
+    public long ProductVisualDefinitionId { get; set; }
 }
 
 /// <summary>
@@ -98,6 +99,18 @@ public class VisualDefinitionGroup
     public bool HasImage { get; set; }
     /// <summary>Item definitions (sizes) under this visual definition.</summary>
     public List<VisualDefinitionItem> Items { get; set; } = [];
+    /// <summary>Schools linked to this visual definition.</summary>
+    public List<VisualDefinitionSchoolInfo> Schools { get; set; } = [];
+}
+
+/// <summary>
+/// Lightweight school info for a visual definition card.
+/// </summary>
+public class VisualDefinitionSchoolInfo
+{
+    public int SchoolId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string SchoolLevelName { get; set; } = string.Empty;
 }
 
 /// <summary>

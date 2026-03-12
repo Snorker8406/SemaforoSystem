@@ -40,12 +40,23 @@ public class SupplyProcessController(ApplicationDbContext db) : ControllerBase
                     .Where(c => c.CategoryId == EscolarCategoryId)
                     .Select(c => c.Name)
                     .FirstOrDefault() ?? "Escolar",
-                SchoolNames = p.ProductSchools
-                    .OrderBy(ps => ps.School.Name)
-                    .Select(ps => ps.School.SchoolLevel.Name + " " + ps.School.Name)
+                SchoolNames = p.ProductVisualDefinitions
+                    .SelectMany(vd => vd.ProductVisualDefinitionSchools)
+                    .Select(pvds => pvds.School)
+                    .OrderBy(s => s.Name)
+                    .Select(s => s.SchoolLevel.Name + " " + s.Name)
+                    .Distinct()
                     .ToList(),
-                SchoolCount = p.ProductSchools.Count,
-                SchoolCommonProduct = p.ProductSchools.Count >= minSchoolCount,
+                SchoolCount = p.ProductVisualDefinitions
+                    .SelectMany(vd => vd.ProductVisualDefinitionSchools)
+                    .Select(pvds => pvds.SchoolId)
+                    .Distinct()
+                    .Count(),
+                SchoolCommonProduct = p.ProductVisualDefinitions
+                    .SelectMany(vd => vd.ProductVisualDefinitionSchools)
+                    .Select(pvds => pvds.SchoolId)
+                    .Distinct()
+                    .Count() >= minSchoolCount,
             })
             .OrderByDescending(p => p.SchoolCount)
             .ThenBy(p => p.Name)
@@ -70,7 +81,8 @@ public class SupplyProcessController(ApplicationDbContext db) : ControllerBase
     {
         var schools = await db.Schools
             .AsNoTracking()
-            .Where(s => s.ProductSchools.Any(ps => ps.Product.Categories.Any(c => c.CategoryId == EscolarCategoryId)))
+            .Where(s => s.ProductVisualDefinitionSchools.Any(pvds =>
+                pvds.ProductVisualDefinition.Product.Categories.Any(c => c.CategoryId == EscolarCategoryId)))
             .Select(s => new SchoolWithProductsResponse
             {
                 SchoolId = s.SchoolId,
@@ -79,11 +91,15 @@ public class SupplyProcessController(ApplicationDbContext db) : ControllerBase
                 Address = s.Address,
                 Ciudad = s.Ciudad,
                 State = s.State,
-                ProductCount = s.ProductSchools
-                    .Count(ps => ps.Product.Categories.Any(c => c.CategoryId == EscolarCategoryId)),
-                Products = s.ProductSchools
-                    .Where(ps => ps.Product.Categories.Any(c => c.CategoryId == EscolarCategoryId))
-                    .Select(ps => ps.Product)
+                ProductCount = s.ProductVisualDefinitionSchools
+                    .Where(pvds => pvds.ProductVisualDefinition.Product.Categories.Any(c => c.CategoryId == EscolarCategoryId))
+                    .Select(pvds => pvds.ProductVisualDefinition.ProductId)
+                    .Distinct()
+                    .Count(),
+                Products = s.ProductVisualDefinitionSchools
+                    .Where(pvds => pvds.ProductVisualDefinition.Product.Categories.Any(c => c.CategoryId == EscolarCategoryId))
+                    .Select(pvds => pvds.ProductVisualDefinition.Product)
+                    .Distinct()
                     .Select(p => new SchoolProductResponse
                     {
                         ProductId = p.ProductId,
@@ -93,12 +109,23 @@ public class SupplyProcessController(ApplicationDbContext db) : ControllerBase
                             .Where(c => c.CategoryId == EscolarCategoryId)
                             .Select(c => c.Name)
                             .FirstOrDefault() ?? "Escolar",
-                        SchoolNames = p.ProductSchools
-                            .OrderBy(ps => ps.School.Name)
-                            .Select(ps => ps.School.SchoolLevel.Name + " " + ps.School.Name)
+                        SchoolNames = p.ProductVisualDefinitions
+                            .SelectMany(vd => vd.ProductVisualDefinitionSchools)
+                            .Select(pvds2 => pvds2.School)
+                            .OrderBy(sch => sch.Name)
+                            .Select(sch => sch.SchoolLevel.Name + " " + sch.Name)
+                            .Distinct()
                             .ToList(),
-                        SchoolCount = p.ProductSchools.Count,
-                        SchoolCommonProduct = p.ProductSchools.Count >= minSchoolCount,
+                        SchoolCount = p.ProductVisualDefinitions
+                            .SelectMany(vd => vd.ProductVisualDefinitionSchools)
+                            .Select(pvds2 => pvds2.SchoolId)
+                            .Distinct()
+                            .Count(),
+                        SchoolCommonProduct = p.ProductVisualDefinitions
+                            .SelectMany(vd => vd.ProductVisualDefinitionSchools)
+                            .Select(pvds2 => pvds2.SchoolId)
+                            .Distinct()
+                            .Count() >= minSchoolCount,
                     })
                     .OrderByDescending(p => p.SchoolCount)
                     .ThenBy(p => p.Name)
