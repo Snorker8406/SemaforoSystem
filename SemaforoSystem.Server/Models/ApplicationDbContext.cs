@@ -99,6 +99,8 @@ public partial class ApplicationDbContext : DbContext
 
     public virtual DbSet<ProductVisualDefinition> ProductVisualDefinitions { get; set; }
 
+    public virtual DbSet<ProductVisualDefinitionEmbroidery> ProductVisualDefinitionEmbroideries { get; set; }
+
     public virtual DbSet<ProductVisualDefinitionSchool> ProductVisualDefinitionSchools { get; set; }
 
     public virtual DbSet<Provider> Providers { get; set; }
@@ -116,6 +118,8 @@ public partial class ApplicationDbContext : DbContext
     public virtual DbSet<School> Schools { get; set; }
 
     public virtual DbSet<SchoolLevel> SchoolLevels { get; set; }
+
+    public virtual DbSet<SchoolVariantLink> SchoolVariantLinks { get; set; }
 
     public virtual DbSet<Site> Sites { get; set; }
 
@@ -749,6 +753,20 @@ public partial class ApplicationDbContext : DbContext
                     });
         });
 
+        modelBuilder.Entity<ProductVisualDefinitionEmbroidery>(entity =>
+        {
+            entity.HasKey(e => new { e.ProductVisualDefinitionId, e.EmbroideryId, e.Placement }).HasName("product_visual_definition_embroideries_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.IsRequired).HasDefaultValue(true);
+
+            entity.HasOne(d => d.Embroidery).WithMany(p => p.ProductVisualDefinitionEmbroideries)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("pvde_embroidery_fkey");
+
+            entity.HasOne(d => d.ProductVisualDefinition).WithMany(p => p.ProductVisualDefinitionEmbroideries).HasConstraintName("pvde_visual_def_fkey");
+        });
+
         modelBuilder.Entity<ProductVisualDefinitionSchool>(entity =>
         {
             entity.HasKey(e => new { e.ProductVisualDefinitionId, e.SchoolId }).HasName("product_visual_definition_schools_pkey");
@@ -851,6 +869,20 @@ public partial class ApplicationDbContext : DbContext
         modelBuilder.Entity<SchoolLevel>(entity =>
         {
             entity.HasKey(e => e.SchoolLevelId).HasName("school_levels_pkey");
+        });
+
+        modelBuilder.Entity<SchoolVariantLink>(entity =>
+        {
+            entity.HasKey(e => e.SchoolId).HasName("school_variant_links_pkey");
+
+            entity.Property(e => e.SchoolId).ValueGeneratedNever();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.ProductVariant).WithOne(p => p.SchoolVariantLink)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("school_variant_links_variant_fkey");
+
+            entity.HasOne(d => d.School).WithOne(p => p.SchoolVariantLink).HasConstraintName("school_variant_links_school_fkey");
         });
 
         modelBuilder.Entity<Site>(entity =>

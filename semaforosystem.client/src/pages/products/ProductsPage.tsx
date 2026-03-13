@@ -23,6 +23,7 @@ import {
   BoxIcon,
   RulerIcon,
   GraduationCapIcon,
+  SparklesIcon,
 } from 'lucide-react'
 
 import DashboardLayout from '@/components/layout/dashboard-layout'
@@ -512,6 +513,18 @@ function VisualDefinitionCard({
           {group.schools.map((s) => (
             <Badge key={s.schoolId} variant='secondary' className='text-[10px]'>
               {s.schoolLevelName} — {s.name}
+            </Badge>
+          ))}
+        </div>
+      )}
+
+      {/* Embroideries linked to this visual definition */}
+      {group.embroideries.length > 0 && (
+        <div className='flex flex-wrap items-center gap-1.5 border-t px-3 py-2'>
+          <SparklesIcon className='text-muted-foreground size-3' />
+          {group.embroideries.map((e) => (
+            <Badge key={`${e.embroideryId}-${e.placement}`} variant='outline' className='text-[10px]'>
+              {e.name}{e.placement ? ` (${e.placement})` : ''}
             </Badge>
           ))}
         </div>

@@ -101,6 +101,8 @@ public class VisualDefinitionGroup
     public List<VisualDefinitionItem> Items { get; set; } = [];
     /// <summary>Schools linked to this visual definition.</summary>
     public List<VisualDefinitionSchoolInfo> Schools { get; set; } = [];
+    /// <summary>Embroideries linked to this visual definition.</summary>
+    public List<VisualDefinitionEmbroideryInfo> Embroideries { get; set; } = [];
 }
 
 /// <summary>
@@ -111,6 +113,17 @@ public class VisualDefinitionSchoolInfo
     public int SchoolId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string SchoolLevelName { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Lightweight embroidery info for a visual definition card.
+/// </summary>
+public class VisualDefinitionEmbroideryInfo
+{
+    public int EmbroideryId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Placement { get; set; } = string.Empty;
+    public bool IsRequired { get; set; }
 }
 
 /// <summary>

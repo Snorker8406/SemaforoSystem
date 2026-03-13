@@ -28,6 +28,9 @@ public partial class ProductVariant
     [InverseProperty("ProductVariants")]
     public virtual ProductVariantSystem ProductVariantSystem { get; set; } = null!;
 
+    [InverseProperty("ProductVariant")]
+    public virtual SchoolVariantLink? SchoolVariantLink { get; set; }
+
     [ForeignKey("ProductVariantId")]
     [InverseProperty("ProductVariants")]
     public virtual ICollection<InventoryItemDefinition> InventoryItemDefinitions { get; set; } = new List<InventoryItemDefinition>();

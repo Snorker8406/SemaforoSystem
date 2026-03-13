@@ -70,6 +70,9 @@ public partial class School
     [InverseProperty("Schools")]
     public virtual SchoolLevel SchoolLevel { get; set; } = null!;
 
+    [InverseProperty("School")]
+    public virtual SchoolVariantLink? SchoolVariantLink { get; set; }
+
     [ForeignKey("SchoolId")]
     [InverseProperty("Schools")]
     public virtual ICollection<ProductCombo> ProductCombos { get; set; } = new List<ProductCombo>();

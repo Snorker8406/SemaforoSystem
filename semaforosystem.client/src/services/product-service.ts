@@ -211,6 +211,13 @@ export interface VisualDefinitionSchoolInfo {
   schoolLevelName: string
 }
 
+export interface VisualDefinitionEmbroideryInfo {
+  embroideryId: number
+  name: string
+  placement: string
+  isRequired: boolean
+}
+
 export interface VisualDefinitionGroup {
   productVisualDefinitionId: number
   variantsHash: string
@@ -218,6 +225,7 @@ export interface VisualDefinitionGroup {
   hasImage: boolean
   items: VisualDefinitionItem[]
   schools: VisualDefinitionSchoolInfo[]
+  embroideries: VisualDefinitionEmbroideryInfo[]
 }
 
 export async function getProductVisualDefinitions(

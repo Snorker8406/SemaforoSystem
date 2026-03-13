@@ -330,6 +330,8 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             .Include(vd => vd.ProductVisualDefinitionSchools)
                 .ThenInclude(pvds => pvds.School)
                     .ThenInclude(s => s.SchoolLevel)
+            .Include(vd => vd.ProductVisualDefinitionEmbroideries)
+                .ThenInclude(pvde => pvde.Embroidery)
             .OrderBy(vd => vd.ProductVisualDefinitionId)
             .Select(vd => new VisualDefinitionGroup
             {
@@ -355,6 +357,17 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
                         SchoolId = pvds.SchoolId,
                         Name = pvds.School.Name,
                         SchoolLevelName = pvds.School.SchoolLevel.Name,
+                    })
+                    .ToList(),
+                Embroideries = vd.ProductVisualDefinitionEmbroideries
+                    .OrderBy(pvde => pvde.Placement)
+                    .ThenBy(pvde => pvde.Embroidery.Name)
+                    .Select(pvde => new VisualDefinitionEmbroideryInfo
+                    {
+                        EmbroideryId = pvde.EmbroideryId,
+                        Name = pvde.Embroidery.Name,
+                        Placement = pvde.Placement,
+                        IsRequired = pvde.IsRequired,
                     })
                     .ToList(),
                 Items = vd.InventoryItemDefinitions

@@ -39,6 +39,9 @@ public partial class ProductVisualDefinition
     public virtual ProductImageTarget? ProductImageTarget { get; set; }
 
     [InverseProperty("ProductVisualDefinition")]
+    public virtual ICollection<ProductVisualDefinitionEmbroidery> ProductVisualDefinitionEmbroideries { get; set; } = new List<ProductVisualDefinitionEmbroidery>();
+
+    [InverseProperty("ProductVisualDefinition")]
     public virtual ICollection<ProductVisualDefinitionSchool> ProductVisualDefinitionSchools { get; set; } = new List<ProductVisualDefinitionSchool>();
 
     [ForeignKey("ProductVisualDefinitionId")]

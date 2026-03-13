@@ -53,6 +53,9 @@ public partial class Embroidery
     [InverseProperty("Embroidery")]
     public virtual ICollection<ProductComboDetail> ProductComboDetails { get; set; } = new List<ProductComboDetail>();
 
+    [InverseProperty("Embroidery")]
+    public virtual ICollection<ProductVisualDefinitionEmbroidery> ProductVisualDefinitionEmbroideries { get; set; } = new List<ProductVisualDefinitionEmbroidery>();
+
     [ForeignKey("SchoolId")]
     [InverseProperty("Embroideries")]
     public virtual School? School { get; set; }
