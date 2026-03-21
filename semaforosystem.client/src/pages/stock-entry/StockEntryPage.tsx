@@ -144,12 +144,6 @@ function ProductTabContent({
     return [...seen.values()]
   }, [schools])
 
-  // Schools filtered by selected level
-  const filteredSchools = useMemo(() => {
-    if (!selectedSchoolLevelName) return []
-    return schools.filter((s) => s.schoolLevelName === selectedSchoolLevelName)
-  }, [schools, selectedSchoolLevelName])
-
   // Auto-select when only 1 option in school levels
   const effectiveLevelName = schoolLevels.length === 1 ? schoolLevels[0] : selectedSchoolLevelName
   const levelReadOnly = schoolLevels.length === 1

@@ -21,10 +21,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
         configure: (proxy) => {
-          proxy.on('error', (err, _req, res) => {
-            if (!res.headersSent) {
-              res.writeHead(502, { 'Content-Type': 'application/json' })
-              res.end(JSON.stringify({ message: 'Backend not ready' }))
+          proxy.on('error', (_err, _req, res) => {
+            const response = res as import('http').ServerResponse
+            if (!response.headersSent) {
+              response.writeHead(502, { 'Content-Type': 'application/json' })
+              response.end(JSON.stringify({ message: 'Backend not ready' }))
             }
           })
         },
@@ -34,10 +35,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
         configure: (proxy) => {
-          proxy.on('error', (err, _req, res) => {
-            if (!res.headersSent) {
-              res.writeHead(502, { 'Content-Type': 'application/json' })
-              res.end(JSON.stringify({ message: 'Backend not ready' }))
+          proxy.on('error', (_err, _req, res) => {
+            const response = res as import('http').ServerResponse
+            if (!response.headersSent) {
+              response.writeHead(502, { 'Content-Type': 'application/json' })
+              response.end(JSON.stringify({ message: 'Backend not ready' }))
             }
           })
         },

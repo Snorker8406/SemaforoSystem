@@ -72,7 +72,7 @@ export interface ProductComboQueryParams {
 
 const BASE = '/api/productcombos'
 
-function toQueryString(params: Record<string, unknown>): string {
+function toQueryString(params: object): string {
   const entries = Object.entries(params).filter(
     ([, v]) => v !== undefined && v !== null && v !== '',
   )

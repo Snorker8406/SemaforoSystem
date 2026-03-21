@@ -70,7 +70,7 @@ export interface SizeQueryParams {
 
 const BASE = '/api/sizes'
 
-function toQueryString(params: Record<string, unknown>): string {
+function toQueryString(params: object): string {
   const entries = Object.entries(params).filter(
     ([, v]) => v !== undefined && v !== null && v !== '',
   )

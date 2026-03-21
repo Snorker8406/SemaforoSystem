@@ -139,7 +139,7 @@ export default function ComboFormDialog({
 
   // ── Field helper ──────────────────────────────────
 
-  function field(key: keyof FormData) {
+  function field(key: 'name' | 'description') {
     return {
       value: form[key],
       onChange: (

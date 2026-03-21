@@ -1,0 +1,13 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: SemaforoSystem.Server/Dockerfile
+    container_name: semaforo-app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: "Host=host.docker.internal;Port=55432;Database=semaforo;Username=IOTek_Admin;Password=Semaforo123;SSL Mode=Disable;"
