@@ -5,20 +5,25 @@ import type {
   ProductComboQueryParams,
   CreateProductComboRequest,
   UpdateProductComboRequest,
-  CreateProductComboDetailRequest,
-  UpdateProductComboDetailRequest,
+  CreateVisualDefinitionRequest,
+  UpdateVisualDefinitionRequest,
+  CreateComponentRequest,
+  UpdateComponentRequest,
 } from '@/services/combo-service'
 import {
   getProductCombos,
   getProductCombo,
   getProductCombosLookup,
+  getComboVisualDefinitions,
   createProductCombo,
   updateProductCombo,
   deleteProductCombo,
-  getComboDetails,
-  createComboDetail,
-  updateComboDetail,
-  deleteComboDetail,
+  createComboVisualDefinition,
+  updateComboVisualDefinition,
+  deleteComboVisualDefinition,
+  createComboComponent,
+  updateComboComponent,
+  deleteComboComponent,
 } from '@/services/combo-service'
 import { ApiError } from '@/lib/api-client'
 
@@ -31,7 +36,7 @@ export const comboKeys = {
   details: () => [...comboKeys.all, 'detail'] as const,
   detail: (id: number) => [...comboKeys.details(), id] as const,
   lookup: () => [...comboKeys.all, 'lookup'] as const,
-  comboDetails: (comboId: number) => [...comboKeys.all, 'comboDetails', comboId] as const,
+  visualDefinitions: (comboId: number) => [...comboKeys.all, 'visualDefinitions', comboId] as const,
 }
 
 // ── Combo Queries ────────────────────────────────────────
@@ -63,11 +68,11 @@ export function useCombosLookup() {
   })
 }
 
-/** Combo details for a specific combo */
-export function useComboDetails(comboId: number | null | undefined) {
+/** Visual definitions for a specific combo */
+export function useComboVisualDefinitions(comboId: number | null | undefined) {
   return useQuery({
-    queryKey: comboKeys.comboDetails(comboId!),
-    queryFn: () => getComboDetails(comboId!),
+    queryKey: comboKeys.visualDefinitions(comboId!),
+    queryFn: () => getComboVisualDefinitions(comboId!),
     enabled: comboId != null,
   })
 }
@@ -140,10 +145,10 @@ export function useDeleteCombo(options?: { onSuccess?: () => void }) {
   })
 }
 
-// ── Combo Detail Mutations ───────────────────────────────
+// ── Visual Definition Mutations ──────────────────────────
 
-/** Create a combo detail line */
-export function useCreateComboDetail(options?: { onSuccess?: () => void }) {
+/** Create a visual definition under a combo */
+export function useCreateVisualDefinition(options?: { onSuccess?: () => void }) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({
@@ -151,78 +156,172 @@ export function useCreateComboDetail(options?: { onSuccess?: () => void }) {
       data,
     }: {
       comboId: number
-      data: CreateProductComboDetailRequest
-    }) => createComboDetail(comboId, data),
+      data: CreateVisualDefinitionRequest
+    }) => createComboVisualDefinition(comboId, data),
     onSuccess: (_resp, vars) => {
-      queryClient.invalidateQueries({ queryKey: comboKeys.comboDetails(vars.comboId) })
-      queryClient.invalidateQueries({ queryKey: comboKeys.all })
-      toast.success('Detalle agregado exitosamente')
+      queryClient.invalidateQueries({ queryKey: comboKeys.visualDefinitions(vars.comboId) })
+      queryClient.invalidateQueries({ queryKey: comboKeys.lists() })
+      toast.success('Visual definition creada exitosamente')
       options?.onSuccess?.()
     },
     onError: (error: Error) => {
       if (error instanceof ApiError) {
         const body = error.body as { message?: string }
-        toast.error(body?.message ?? 'Error al agregar el detalle')
+        toast.error(body?.message ?? 'Error al crear la visual definition')
       } else {
-        toast.error('Error al agregar el detalle')
+        toast.error('Error al crear la visual definition')
       }
     },
   })
 }
 
-/** Update a combo detail line */
-export function useUpdateComboDetail(options?: { onSuccess?: () => void }) {
+/** Update a visual definition */
+export function useUpdateVisualDefinition(options?: { onSuccess?: () => void }) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({
       comboId,
-      detailId,
+      vdId,
       data,
     }: {
       comboId: number
-      detailId: number
-      data: UpdateProductComboDetailRequest
-    }) => updateComboDetail(comboId, detailId, data),
+      vdId: number
+      data: UpdateVisualDefinitionRequest
+    }) => updateComboVisualDefinition(comboId, vdId, data),
     onSuccess: (_resp, vars) => {
-      queryClient.invalidateQueries({ queryKey: comboKeys.comboDetails(vars.comboId) })
-      queryClient.invalidateQueries({ queryKey: comboKeys.all })
-      toast.success('Detalle actualizado exitosamente')
+      queryClient.invalidateQueries({ queryKey: comboKeys.visualDefinitions(vars.comboId) })
+      queryClient.invalidateQueries({ queryKey: comboKeys.lists() })
+      toast.success('Visual definition actualizada exitosamente')
       options?.onSuccess?.()
     },
     onError: (error: Error) => {
       if (error instanceof ApiError) {
         const body = error.body as { message?: string }
-        toast.error(body?.message ?? 'Error al actualizar el detalle')
+        toast.error(body?.message ?? 'Error al actualizar la visual definition')
       } else {
-        toast.error('Error al actualizar el detalle')
+        toast.error('Error al actualizar la visual definition')
       }
     },
   })
 }
 
-/** Delete a combo detail line */
-export function useDeleteComboDetail(options?: { onSuccess?: () => void }) {
+/** Delete a visual definition */
+export function useDeleteVisualDefinition(options?: { onSuccess?: () => void }) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({
       comboId,
-      detailId,
+      vdId,
     }: {
       comboId: number
-      detailId: number
-    }) => deleteComboDetail(comboId, detailId),
+      vdId: number
+    }) => deleteComboVisualDefinition(comboId, vdId),
     onSuccess: (_resp, vars) => {
-      queryClient.invalidateQueries({ queryKey: comboKeys.comboDetails(vars.comboId) })
-      queryClient.invalidateQueries({ queryKey: comboKeys.all })
-      toast.success('Detalle eliminado exitosamente')
+      queryClient.invalidateQueries({ queryKey: comboKeys.visualDefinitions(vars.comboId) })
+      queryClient.invalidateQueries({ queryKey: comboKeys.lists() })
+      toast.success('Visual definition eliminada exitosamente')
       options?.onSuccess?.()
     },
     onError: (error: Error) => {
       if (error instanceof ApiError) {
         const body = error.body as { message?: string }
-        toast.error(body?.message ?? 'Error al eliminar el detalle')
+        toast.error(body?.message ?? 'Error al eliminar la visual definition')
       } else {
-        toast.error('Error al eliminar el detalle')
+        toast.error('Error al eliminar la visual definition')
+      }
+    },
+  })
+}
+
+// ── Component Mutations ──────────────────────────────────
+
+/** Add a component to a visual definition */
+export function useCreateComponent(options?: { onSuccess?: () => void }) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      comboId,
+      vdId,
+      data,
+    }: {
+      comboId: number
+      vdId: number
+      data: CreateComponentRequest
+    }) => createComboComponent(comboId, vdId, data),
+    onSuccess: (_resp, vars) => {
+      queryClient.invalidateQueries({ queryKey: comboKeys.visualDefinitions(vars.comboId) })
+      queryClient.invalidateQueries({ queryKey: comboKeys.lists() })
+      toast.success('Componente agregado exitosamente')
+      options?.onSuccess?.()
+    },
+    onError: (error: Error) => {
+      if (error instanceof ApiError) {
+        const body = error.body as { message?: string }
+        toast.error(body?.message ?? 'Error al agregar el componente')
+      } else {
+        toast.error('Error al agregar el componente')
+      }
+    },
+  })
+}
+
+/** Update a component */
+export function useUpdateComponent(options?: { onSuccess?: () => void }) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      comboId,
+      vdId,
+      compId,
+      data,
+    }: {
+      comboId: number
+      vdId: number
+      compId: number
+      data: UpdateComponentRequest
+    }) => updateComboComponent(comboId, vdId, compId, data),
+    onSuccess: (_resp, vars) => {
+      queryClient.invalidateQueries({ queryKey: comboKeys.visualDefinitions(vars.comboId) })
+      queryClient.invalidateQueries({ queryKey: comboKeys.lists() })
+      toast.success('Componente actualizado exitosamente')
+      options?.onSuccess?.()
+    },
+    onError: (error: Error) => {
+      if (error instanceof ApiError) {
+        const body = error.body as { message?: string }
+        toast.error(body?.message ?? 'Error al actualizar el componente')
+      } else {
+        toast.error('Error al actualizar el componente')
+      }
+    },
+  })
+}
+
+/** Delete a component */
+export function useDeleteComponent(options?: { onSuccess?: () => void }) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      comboId,
+      vdId,
+      compId,
+    }: {
+      comboId: number
+      vdId: number
+      compId: number
+    }) => deleteComboComponent(comboId, vdId, compId),
+    onSuccess: (_resp, vars) => {
+      queryClient.invalidateQueries({ queryKey: comboKeys.visualDefinitions(vars.comboId) })
+      queryClient.invalidateQueries({ queryKey: comboKeys.lists() })
+      toast.success('Componente eliminado exitosamente')
+      options?.onSuccess?.()
+    },
+    onError: (error: Error) => {
+      if (error instanceof ApiError) {
+        const body = error.body as { message?: string }
+        toast.error(body?.message ?? 'Error al eliminar el componente')
+      } else {
+        toast.error('Error al eliminar el componente')
       }
     },
   })

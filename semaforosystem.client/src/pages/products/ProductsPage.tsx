@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, createContext, useContext } from 'react'
 import {
   flexRender,
   getCoreRowModel,
@@ -57,6 +57,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 import { DataTableColumnHeader } from '@/components/data-table-column-header'
 import type { ColumnFilterType } from '@/components/data-table-column-header'
 
@@ -72,6 +78,10 @@ import { useProducts, useBrands, useCategories, useProductVisualDefinitions } fr
 
 import ProductFormDialog from './product-form-dialog'
 import ProductDeleteDialog from './product-delete-dialog'
+
+// ── Image preview context ────────────────────────────────
+
+const ImagePreviewContext = createContext<(url: string, alt: string) => void>(() => {})
 
 // ── Column sort-key map (accessorKey → backend sortBy value) ─────────
 
@@ -90,6 +100,7 @@ const SORT_MAP: Record<string, string> = {
 interface ColumnContext {
   onEdit: (product: ProductResponse) => void
   onDelete: (product: ProductResponse) => void
+  onPreview: (url: string, alt: string) => void
   queryParams: ProductQueryParams
   onSort: (sortBy: string | undefined, sortDesc: boolean) => void
   onFilter: (key: string, value: string) => void
@@ -101,6 +112,7 @@ function createColumns(ctx: ColumnContext): ColumnDef<ProductResponse>[] {
   const {
     onEdit,
     onDelete,
+    onPreview,
     queryParams,
     onSort,
     onFilter,
@@ -167,7 +179,8 @@ function createColumns(ctx: ColumnContext): ColumnDef<ProductResponse>[] {
             <img
               src={getProductPictureUrl(row.original.productId)}
               alt={row.original.name ?? 'Producto'}
-              className='size-9 rounded-lg object-cover'
+              className='size-9 cursor-pointer rounded-lg object-cover'
+              onClick={() => onPreview(getProductPictureUrl(row.original.productId), row.original.name ?? 'Producto')}
               onError={(e) => {
                 const target = e.currentTarget
                 target.style.display = 'none'
@@ -456,6 +469,7 @@ function VisualDefinitionCard({
   productId: number
 }) {
   const [sizesOpen, setSizesOpen] = useState(false)
+  const onPreview = useContext(ImagePreviewContext)
   const isUngrouped = group.productVisualDefinitionId === 0
 
   // Use visual definition image, or fallback to product image
@@ -472,7 +486,8 @@ function VisualDefinitionCard({
           <img
             src={imageUrl}
             alt={isUngrouped ? 'Sin variantes' : group.variants.map((v) => v.variantValue).join(' / ')}
-            className='size-14 rounded-md border object-cover'
+            className='size-14 cursor-pointer rounded-md border object-cover'
+            onClick={() => onPreview(imageUrl, isUngrouped ? 'Sin variantes' : group.variants.map((v) => v.variantValue).join(' / '))}
             onError={(e) => {
               e.currentTarget.style.display = 'none'
               const fallback = e.currentTarget.nextElementSibling as HTMLElement | null
@@ -612,6 +627,10 @@ export default function ProductsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [selectedProduct, setSelectedProduct] =
     useState<ProductResponse | null>(null)
+  const [previewImage, setPreviewImage] = useState<{ url: string; alt: string } | null>(null)
+  const openPreview = useCallback((url: string, alt: string) => {
+    setPreviewImage({ url, alt })
+  }, [])
 
   // ── Data fetching ──────────────────────────────────
   const { data, isLoading, isFetching } = useProducts(queryParams)
@@ -741,13 +760,14 @@ export default function ProductsPage() {
       createColumns({
         onEdit: handleEdit,
         onDelete: handleDelete,
+        onPreview: openPreview,
         queryParams,
         onSort: handleSort,
         onFilter: handleColumnFilter,
         brands,
         categories,
       }),
-    [handleEdit, handleDelete, queryParams, handleSort, handleColumnFilter, brands, categories],
+    [handleEdit, handleDelete, openPreview, queryParams, handleSort, handleColumnFilter, brands, categories],
   )
 
   const table = useReactTable({
@@ -763,6 +783,7 @@ export default function ProductsPage() {
   // ── Render ─────────────────────────────────────────
 
   return (
+    <ImagePreviewContext.Provider value={openPreview}>
     <DashboardLayout>
       <div className='space-y-6'>
         {/* Header */}
@@ -989,6 +1010,23 @@ export default function ProductsPage() {
         onOpenChange={setDeleteOpen}
         product={selectedProduct}
       />
+
+      {/* Image Preview */}
+      <Dialog open={previewImage !== null} onOpenChange={(open) => !open && setPreviewImage(null)}>
+        <DialogContent className='max-w-lg p-2 sm:max-w-xl'>
+          <VisuallyHidden>
+            <DialogTitle>{previewImage?.alt ?? 'Vista previa'}</DialogTitle>
+          </VisuallyHidden>
+          {previewImage && (
+            <img
+              src={previewImage.url}
+              alt={previewImage.alt}
+              className='w-full rounded-md object-contain'
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
+    </ImagePreviewContext.Provider>
   )
 }

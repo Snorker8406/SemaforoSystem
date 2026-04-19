@@ -35,7 +35,7 @@ export default function ComboDeleteDialog({
           <AlertDialogDescription>
             Está a punto de eliminar el combo{' '}
             <strong>&quot;{combo?.name}&quot;</strong>. Se eliminarán también
-            todos sus detalles. Esta acción no se puede deshacer.
+            todas sus variantes y componentes. Esta acción no se puede deshacer.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
