@@ -83,7 +83,15 @@ public partial class ApplicationDbContext : DbContext
 
     public virtual DbSet<ProductCombo> ProductCombos { get; set; }
 
-    public virtual DbSet<ProductComboDetail> ProductComboDetails { get; set; }
+    public virtual DbSet<ProductComboComponent> ProductComboComponents { get; set; }
+
+    public virtual DbSet<ProductComboImage> ProductComboImages { get; set; }
+
+    public virtual DbSet<ProductComboImageTarget> ProductComboImageTargets { get; set; }
+
+    public virtual DbSet<ProductComboVisualDefinition> ProductComboVisualDefinitions { get; set; }
+
+    public virtual DbSet<ProductComboVisualDefinitionSchool> ProductComboVisualDefinitionSchools { get; set; }
 
     public virtual DbSet<ProductCost> ProductCosts { get; set; }
 
@@ -140,8 +148,8 @@ public partial class ApplicationDbContext : DbContext
     public virtual DbSet<VCurrentBasePricesVisualDefinition> VCurrentBasePricesVisualDefinitions { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-    }
+#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
+        => optionsBuilder.UseNpgsql("Host=localhost;Database=semaforo;Username=IOTek_Admin;Password=1234");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -591,37 +599,101 @@ public partial class ApplicationDbContext : DbContext
         {
             entity.HasKey(e => e.ProductComboId).HasName("product_combos_pkey");
 
-            entity.HasMany(d => d.Schools).WithMany(p => p.ProductCombos)
-                .UsingEntity<Dictionary<string, object>>(
-                    "ProductCombosSchool",
-                    r => r.HasOne<School>().WithMany()
-                        .HasForeignKey("SchoolId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("product_combos_schools_school_id_fkey"),
-                    l => l.HasOne<ProductCombo>().WithMany()
-                        .HasForeignKey("ProductComboId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("product_combos_schools_product_combo_id_fkey"),
-                    j =>
-                    {
-                        j.HasKey("ProductComboId", "SchoolId").HasName("product_combos_schools_pkey");
-                        j.ToTable("product_combos_schools");
-                        j.IndexerProperty<int>("ProductComboId").HasColumnName("product_combo_id");
-                        j.IndexerProperty<int>("SchoolId").HasColumnName("school_id");
-                    });
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
         });
 
-        modelBuilder.Entity<ProductComboDetail>(entity =>
+        modelBuilder.Entity<ProductComboComponent>(entity =>
         {
-            entity.HasKey(e => e.ProductComboDetailId).HasName("product_combo_details_pkey");
+            entity.HasKey(e => e.ProductComboComponentId).HasName("product_combo_components_pkey");
 
-            entity.HasOne(d => d.Embroidery).WithMany(p => p.ProductComboDetails).HasConstraintName("product_combo_details_embroidery_id_fkey");
+            entity.HasIndex(e => new { e.ProductComboVisualDefinitionId, e.EmbroideryId, e.Placement }, "ux_combo_components_embroidery")
+                .IsUnique()
+                .HasFilter("((component_type)::text = 'EMBROIDERY'::text)");
 
-            entity.HasOne(d => d.ProductCombo).WithMany(p => p.ProductComboDetails)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("product_combo_details_product_combo_id_fkey");
+            entity.HasIndex(e => new { e.ProductComboVisualDefinitionId, e.ProductId }, "ux_combo_components_product")
+                .IsUnique()
+                .HasFilter("((component_type)::text = 'PRODUCT'::text)");
 
-            entity.HasOne(d => d.Product).WithMany(p => p.ProductComboDetails).HasConstraintName("product_combo_details_product_id_fkey");
+            entity.HasIndex(e => new { e.ProductComboVisualDefinitionId, e.ProductVisualDefinitionId }, "ux_combo_components_visualdef")
+                .IsUnique()
+                .HasFilter("((component_type)::text = 'PRODUCT_VISUAL_DEFINITION'::text)");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.IsRequired).HasDefaultValue(true);
+            entity.Property(e => e.Quantity).HasDefaultValue(1);
+
+            entity.HasOne(d => d.Embroidery).WithMany(p => p.ProductComboComponents)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("product_combo_components_embroidery_id_fkey");
+
+            entity.HasOne(d => d.ProductComboVisualDefinition).WithMany(p => p.ProductComboComponents).HasConstraintName("product_combo_components_product_combo_visual_definition_i_fkey");
+
+            entity.HasOne(d => d.Product).WithMany(p => p.ProductComboComponents)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("product_combo_components_product_id_fkey");
+
+            entity.HasOne(d => d.ProductVisualDefinition).WithMany(p => p.ProductComboComponents)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("product_combo_components_product_visual_definition_id_fkey");
+        });
+
+        modelBuilder.Entity<ProductComboImage>(entity =>
+        {
+            entity.HasKey(e => e.ProductComboImageId).HasName("product_combo_images_pkey");
+
+            entity.HasIndex(e => new { e.Sha256, e.ImageRole }, "ux_combo_images_sha256_role")
+                .IsUnique()
+                .HasFilter("(sha256 IS NOT NULL)");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.ImageRole).HasDefaultValueSql("'ORIGINAL'::character varying");
+            entity.Property(e => e.Sha256).IsFixedLength();
+        });
+
+        modelBuilder.Entity<ProductComboImageTarget>(entity =>
+        {
+            entity.HasKey(e => e.ProductComboImageTargetId).HasName("product_combo_image_targets_pkey");
+
+            entity.HasIndex(e => e.ProductComboVisualDefinitionId, "ux_combo_image_targets_primary")
+                .IsUnique()
+                .HasFilter("(is_primary = true)");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.ProductComboImage).WithMany(p => p.ProductComboImageTargets).HasConstraintName("product_combo_image_targets_product_combo_image_id_fkey");
+
+            entity.HasOne(d => d.ProductComboVisualDefinition).WithOne(p => p.ProductComboImageTarget).HasConstraintName("product_combo_image_targets_product_combo_visual_definitio_fkey");
+        });
+
+        modelBuilder.Entity<ProductComboVisualDefinition>(entity =>
+        {
+            entity.HasKey(e => e.ProductComboVisualDefinitionId).HasName("product_combo_visual_definitions_pkey");
+
+            entity.Property(e => e.ProductComboVisualDefinitionId).HasDefaultValueSql("nextval('product_combo_visual_definiti_product_combo_visual_definiti_seq'::regclass)");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.DiscountType).HasDefaultValueSql("'NONE'::character varying");
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+
+            entity.HasOne(d => d.PriceList).WithMany(p => p.ProductComboVisualDefinitions)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("product_combo_visual_definitions_price_list_id_fkey");
+
+            entity.HasOne(d => d.ProductCombo).WithMany(p => p.ProductComboVisualDefinitions).HasConstraintName("product_combo_visual_definitions_product_combo_id_fkey");
+        });
+
+        modelBuilder.Entity<ProductComboVisualDefinitionSchool>(entity =>
+        {
+            entity.HasKey(e => new { e.ProductComboVisualDefinitionId, e.SchoolId }).HasName("product_combo_visual_definition_schools_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+
+            entity.HasOne(d => d.ProductComboVisualDefinition).WithMany(p => p.ProductComboVisualDefinitionSchools).HasConstraintName("pcvs_combo_visual_definition_id_fkey");
+
+            entity.HasOne(d => d.School).WithMany(p => p.ProductComboVisualDefinitionSchools)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("pcvs_school_id_fkey");
         });
 
         modelBuilder.Entity<ProductCost>(entity =>

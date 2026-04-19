@@ -36,6 +36,9 @@ public partial class ProductVisualDefinition
     public virtual Product Product { get; set; } = null!;
 
     [InverseProperty("ProductVisualDefinition")]
+    public virtual ICollection<ProductComboComponent> ProductComboComponents { get; set; } = new List<ProductComboComponent>();
+
+    [InverseProperty("ProductVisualDefinition")]
     public virtual ProductImageTarget? ProductImageTarget { get; set; }
 
     [InverseProperty("ProductVisualDefinition")]

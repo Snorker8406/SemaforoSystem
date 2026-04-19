@@ -51,7 +51,7 @@ public partial class Embroidery
     public byte[]? ImageDesign { get; set; }
 
     [InverseProperty("Embroidery")]
-    public virtual ICollection<ProductComboDetail> ProductComboDetails { get; set; } = new List<ProductComboDetail>();
+    public virtual ICollection<ProductComboComponent> ProductComboComponents { get; set; } = new List<ProductComboComponent>();
 
     [InverseProperty("Embroidery")]
     public virtual ICollection<ProductVisualDefinitionEmbroidery> ProductVisualDefinitionEmbroideries { get; set; } = new List<ProductVisualDefinitionEmbroidery>();

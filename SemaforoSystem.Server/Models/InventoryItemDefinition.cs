@@ -25,7 +25,7 @@ public partial class InventoryItemDefinition
     public bool IsSerialized { get; set; }
 
     [Column("sku_code")]
-    [StringLength(80)]
+    [StringLength(300)]
     public string SkuCode { get; set; } = null!;
 
     [Column("name_snapshot")]

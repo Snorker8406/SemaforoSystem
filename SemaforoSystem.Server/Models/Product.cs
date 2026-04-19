@@ -59,7 +59,7 @@ public partial class Product
     public virtual ICollection<PriceProductEntry> PriceProductEntries { get; set; } = new List<PriceProductEntry>();
 
     [InverseProperty("Product")]
-    public virtual ICollection<ProductComboDetail> ProductComboDetails { get; set; } = new List<ProductComboDetail>();
+    public virtual ICollection<ProductComboComponent> ProductComboComponents { get; set; } = new List<ProductComboComponent>();
 
     [InverseProperty("Product")]
     public virtual ICollection<ProductCost> ProductCosts { get; set; } = new List<ProductCost>();

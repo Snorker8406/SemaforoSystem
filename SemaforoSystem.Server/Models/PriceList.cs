@@ -42,4 +42,7 @@ public partial class PriceList
 
     [InverseProperty("PriceList")]
     public virtual ICollection<PriceVisualDefinitionEntry> PriceVisualDefinitionEntries { get; set; } = new List<PriceVisualDefinitionEntry>();
+
+    [InverseProperty("PriceList")]
+    public virtual ICollection<ProductComboVisualDefinition> ProductComboVisualDefinitions { get; set; } = new List<ProductComboVisualDefinition>();
 }

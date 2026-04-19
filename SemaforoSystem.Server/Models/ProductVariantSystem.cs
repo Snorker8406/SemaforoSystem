@@ -22,6 +22,10 @@ public partial class ProductVariantSystem
     [StringLength(250)]
     public string? Description { get; set; }
 
+    [Column("label")]
+    [StringLength(50)]
+    public string? Label { get; set; }
+
     [InverseProperty("ProductVariantSystem")]
     public virtual ICollection<ProductVariant> ProductVariants { get; set; } = new List<ProductVariant>();
 

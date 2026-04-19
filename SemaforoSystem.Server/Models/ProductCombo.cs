@@ -7,30 +7,30 @@ using Microsoft.EntityFrameworkCore;
 namespace SemaforoSystem.Server.Models;
 
 [Table("product_combos")]
+[Index("IsActive", Name = "ix_product_combos_active")]
 public partial class ProductCombo
 {
     [Key]
     [Column("product_combo_id")]
-    public int ProductComboId { get; set; }
+    public long ProductComboId { get; set; }
 
     [Column("name")]
-    [StringLength(250)]
+    [StringLength(200)]
     public string Name { get; set; } = null!;
 
     [Column("description")]
-    [StringLength(250)]
+    [StringLength(500)]
     public string? Description { get; set; }
 
-    [Column("create_date")]
-    public DateTime? CreateDate { get; set; }
+    [Column("is_active")]
+    public bool IsActive { get; set; }
 
-    [Column("active")]
-    public bool? Active { get; set; }
+    [Column("created_at")]
+    public DateTime CreatedAt { get; set; }
+
+    [Column("updated_at")]
+    public DateTime? UpdatedAt { get; set; }
 
     [InverseProperty("ProductCombo")]
-    public virtual ICollection<ProductComboDetail> ProductComboDetails { get; set; } = new List<ProductComboDetail>();
-
-    [ForeignKey("ProductComboId")]
-    [InverseProperty("ProductCombos")]
-    public virtual ICollection<School> Schools { get; set; } = new List<School>();
+    public virtual ICollection<ProductComboVisualDefinition> ProductComboVisualDefinitions { get; set; } = new List<ProductComboVisualDefinition>();
 }

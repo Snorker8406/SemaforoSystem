@@ -64,6 +64,9 @@ public partial class School
     public virtual ICollection<File> Files { get; set; } = new List<File>();
 
     [InverseProperty("School")]
+    public virtual ICollection<ProductComboVisualDefinitionSchool> ProductComboVisualDefinitionSchools { get; set; } = new List<ProductComboVisualDefinitionSchool>();
+
+    [InverseProperty("School")]
     public virtual ICollection<ProductVisualDefinitionSchool> ProductVisualDefinitionSchools { get; set; } = new List<ProductVisualDefinitionSchool>();
 
     [ForeignKey("SchoolLevelId")]
@@ -72,8 +75,4 @@ public partial class School
 
     [InverseProperty("School")]
     public virtual SchoolVariantLink? SchoolVariantLink { get; set; }
-
-    [ForeignKey("SchoolId")]
-    [InverseProperty("Schools")]
-    public virtual ICollection<ProductCombo> ProductCombos { get; set; } = new List<ProductCombo>();
 }
