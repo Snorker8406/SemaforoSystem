@@ -28,11 +28,11 @@ public partial class InventoryReservation
     [Column("status")]
     public short? Status { get; set; }
 
-    [Column("created_at", TypeName = "time with time zone")]
-    public DateTimeOffset CreatedAt { get; set; }
+    [Column("created_at")]
+    public DateTime CreatedAt { get; set; }
 
-    [Column("expires_at", TypeName = "time with time zone")]
-    public DateTimeOffset? ExpiresAt { get; set; }
+    [Column("expires_at")]
+    public DateTime? ExpiresAt { get; set; }
 
     [ForeignKey("InventoryItemDefinitionId")]
     [InverseProperty("InventoryReservations")]

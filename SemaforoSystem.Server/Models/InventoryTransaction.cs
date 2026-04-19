@@ -17,8 +17,8 @@ public partial class InventoryTransaction
     [StringLength(30)]
     public string TransactionType { get; set; } = null!;
 
-    [Column("transaction_date", TypeName = "time with time zone")]
-    public DateTimeOffset TransactionDate { get; set; }
+    [Column("transaction_date")]
+    public DateTime TransactionDate { get; set; }
 
     [Column("reference")]
     [StringLength(100)]
@@ -32,7 +32,7 @@ public partial class InventoryTransaction
     public string? UserId { get; set; }
 
     [Column("created_at")]
-    public TimeOnly? CreatedAt { get; set; }
+    public DateTime? CreatedAt { get; set; }
 
     [InverseProperty("InventoryTransaction")]
     public virtual ICollection<InventoryTransactionLine> InventoryTransactionLines { get; set; } = new List<InventoryTransactionLine>();

@@ -30,8 +30,8 @@ public partial class InventorySerialItem
     [Column("status")]
     public short Status { get; set; }
 
-    [Column("created_at", TypeName = "time with time zone")]
-    public DateTimeOffset CreatedAt { get; set; }
+    [Column("created_at")]
+    public DateTime CreatedAt { get; set; }
 
     [Column("deactivated_at")]
     public DateTime? DeactivatedAt { get; set; }

@@ -26,11 +26,11 @@ public class InventoryService(ApplicationDbContext db)
             var header = new InventoryTransaction
             {
                 TransactionType = "ENTRY",
-                TransactionDate = DateTimeOffset.UtcNow,
+                TransactionDate = DateTime.UtcNow,
                 Reference = request.Reference,
                 Comments = request.Comments,
                 UserId = userId,
-                CreatedAt = TimeOnly.FromDateTime(DateTime.UtcNow),
+                CreatedAt = DateTime.UtcNow,
             };
 
             db.InventoryTransactions.Add(header);
@@ -103,7 +103,7 @@ public class InventoryService(ApplicationDbContext db)
                             Barcode = barcode,
                             SerialNumber = serialNumber,
                             Status = 1, // Available
-                            CreatedAt = DateTimeOffset.UtcNow,
+                            CreatedAt = DateTime.UtcNow,
                         };
 
                         db.InventorySerialItems.Add(serial);
@@ -268,7 +268,7 @@ public class InventoryService(ApplicationDbContext db)
             SkuCode = GenerateSkuCode(productId, sizeId, normalizedVariants),
             NameSnapshot = BuildNameSnapshot(product.Name, sizeName),
             IsActive = true,
-            CreatedAt = DateTimeOffset.UtcNow,
+            CreatedAt = DateTime.UtcNow,
         };
 
         db.InventoryItemDefinitions.Add(definition);
@@ -311,7 +311,7 @@ public class InventoryService(ApplicationDbContext db)
                 InventoryItemDefinitionId = definitionId,
                 OnHand = onHandDelta,
                 Reserved = reservedDelta,
-                UpdatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
             };
             db.InventoryBalances.Add(balance);
         }
@@ -319,7 +319,7 @@ public class InventoryService(ApplicationDbContext db)
         {
             balance.OnHand = (balance.OnHand ?? 0) + onHandDelta;
             balance.Reserved = (balance.Reserved ?? 0) + reservedDelta;
-            balance.UpdatedAt = DateTimeOffset.UtcNow;
+            balance.UpdatedAt = DateTime.UtcNow;
         }
 
         await db.SaveChangesAsync(ct);

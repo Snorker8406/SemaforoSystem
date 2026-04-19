@@ -35,11 +35,11 @@ public partial class InventoryItemDefinition
     [Column("is_active")]
     public bool IsActive { get; set; }
 
-    [Column("created_at", TypeName = "time with time zone")]
-    public DateTimeOffset CreatedAt { get; set; }
+    [Column("created_at")]
+    public DateTime CreatedAt { get; set; }
 
-    [Column("updated_at", TypeName = "time with time zone")]
-    public DateTimeOffset? UpdatedAt { get; set; }
+    [Column("updated_at")]
+    public DateTime? UpdatedAt { get; set; }
 
     [Column("product_visual_definition_id")]
     public long? ProductVisualDefinitionId { get; set; }

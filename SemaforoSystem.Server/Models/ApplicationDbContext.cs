@@ -357,6 +357,8 @@ public partial class ApplicationDbContext : DbContext
         {
             entity.HasKey(e => new { e.SiteId, e.InventoryItemDefinitionId }).HasName("inventory_balances_pkey");
 
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()");
+
             entity.HasOne(d => d.InventoryItemDefinition).WithMany(p => p.InventoryBalances)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("inventory_balances_inventory_item_definition_id_fkey");
@@ -370,7 +372,9 @@ public partial class ApplicationDbContext : DbContext
         {
             entity.HasKey(e => e.InventoryItemDefinitionId).HasName("inventory_item_definitions_pkey");
 
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
             entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()");
 
             entity.HasOne(d => d.Product).WithMany(p => p.InventoryItemDefinitions)
                 .OnDelete(DeleteBehavior.ClientSetNull)
@@ -406,6 +410,8 @@ public partial class ApplicationDbContext : DbContext
         {
             entity.HasKey(e => e.InventoryReservationId).HasName("inventory_reservations_pkey");
 
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+
             entity.HasOne(d => d.InventoryItemDefinition).WithMany(p => p.InventoryReservations)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("inventory_reservations_inventory_item_definition_id");
@@ -438,6 +444,7 @@ public partial class ApplicationDbContext : DbContext
         {
             entity.HasKey(e => e.InventorySerialItemId).HasName("inventory_serial_items_pkey");
 
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
             entity.Property(e => e.Status).HasDefaultValue((short)1);
 
             entity.HasOne(d => d.CurrentSite).WithMany(p => p.InventorySerialItems)
@@ -453,7 +460,8 @@ public partial class ApplicationDbContext : DbContext
         {
             entity.HasKey(e => e.InventoryTransactionId).HasName("inventory_transactions_pkey");
 
-            entity.Property(e => e.InventoryTransactionId).ValueGeneratedNever();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.TransactionDate).HasDefaultValueSql("now()");
         });
 
         modelBuilder.Entity<InventoryTransactionLine>(entity =>

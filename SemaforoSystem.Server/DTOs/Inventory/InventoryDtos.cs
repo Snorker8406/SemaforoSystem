@@ -58,7 +58,7 @@ public class InventoryTransactionResponse
 {
     public long InventoryTransactionId { get; set; }
     public string TransactionType { get; set; } = null!;
-    public DateTimeOffset TransactionDate { get; set; }
+    public DateTime TransactionDate { get; set; }
     public string? Reference { get; set; }
     public string? Comments { get; set; }
     public string? UserId { get; set; }

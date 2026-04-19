@@ -24,8 +24,8 @@ public partial class InventoryBalance
     [Column("reserved")]
     public int? Reserved { get; set; }
 
-    [Column("updated_at", TypeName = "time with time zone")]
-    public DateTimeOffset UpdatedAt { get; set; }
+    [Column("updated_at")]
+    public DateTime UpdatedAt { get; set; }
 
     [ForeignKey("InventoryItemDefinitionId")]
     [InverseProperty("InventoryBalances")]
