@@ -203,6 +203,17 @@ export interface VisualDefinitionItem {
   priceScope: string | null
   basePriceAmount: number | null
   promoName: string | null
+  // Inventory balance (aggregated across all sites)
+  stockTotal: number
+  stockBySite?: VisualDefinitionItemSiteStock[]
+}
+
+export interface VisualDefinitionItemSiteStock {
+  siteId: number
+  siteName: string
+  onHand: number
+  reserved: number
+  available: number
 }
 
 export interface VisualDefinitionSchoolInfo {

@@ -440,7 +440,7 @@ function ExpandedProductRow({ row }: { row: Row<ProductResponse> }) {
             <span className='text-muted-foreground text-sm'>Cargando artículos…</span>
           </div>
         ) : groups && groups.length > 0 ? (
-          <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3'>
+          <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-2'>
             {groups.map((group) => (
               <VisualDefinitionCard
                 key={group.productVisualDefinitionId}
@@ -471,6 +471,18 @@ function VisualDefinitionCard({
   const [sizesOpen, setSizesOpen] = useState(false)
   const onPreview = useContext(ImagePreviewContext)
   const isUngrouped = group.productVisualDefinitionId === 0
+  const siteColumns = useMemo(() => {
+    const sites = new Map<number, string>()
+    for (const item of group.items) {
+      for (const stock of item.stockBySite ?? []) {
+        if (!sites.has(stock.siteId)) sites.set(stock.siteId, stock.siteName)
+      }
+    }
+
+    return Array.from(sites.entries())
+      .map(([siteId, siteName]) => ({ siteId, siteName }))
+      .sort((a, b) => a.siteName.localeCompare(b.siteName, 'es'))
+  }, [group.items])
 
   // Use visual definition image, or fallback to product image
   const imageUrl = isUngrouped
@@ -561,48 +573,88 @@ function VisualDefinitionCard({
           </button>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <div className='divide-y border-t'>
-            {group.items.map((item) => (
-              <div
-                key={item.inventoryItemDefinitionId}
-                className='flex items-center justify-between px-3 py-2'
-              >
-                <div className='flex items-center gap-2'>
-                  <span className='text-sm font-medium'>
-                    {item.sizeValue ?? 'Única'}
-                  </span>
-                  {!item.isActive && (
-                    <Badge variant='outline' className='text-destructive border-destructive/30 text-[10px]'>
-                      Inactivo
-                    </Badge>
-                  )}
-                  <span className='text-muted-foreground text-[10px]'>
-                    {item.skuCode}
-                  </span>
-                </div>
-                <div className='flex items-center gap-1.5'>
-                  {item.priceAmount != null ? (
-                    <>
-                      {item.priceKind === 'PROMO' && item.basePriceAmount != null && (
-                        <span className='text-muted-foreground text-xs line-through'>
-                          ${item.basePriceAmount.toFixed(2)}
+          <div className='overflow-x-auto border-t'>
+            <table className='w-full min-w-170 text-xs'>
+              <thead className='bg-muted/30'>
+                <tr>
+                  <th className='px-3 py-2 text-left font-medium'>Talla</th>
+                  <th className='px-3 py-2 text-left font-medium'>SKU</th>
+                  {siteColumns.map((site) => (
+                    <th
+                      key={`site-col-${site.siteId}`}
+                      className='px-2 py-2 text-center font-medium whitespace-nowrap'
+                      title={site.siteName}
+                    >
+                      {site.siteName}
+                    </th>
+                  ))}
+                  <th className='px-2 py-2 text-center font-medium'>Total</th>
+                  <th className='px-3 py-2 text-right font-medium'>Precio</th>
+                </tr>
+              </thead>
+              <tbody>
+                {group.items.map((item) => {
+                  const stockMap = new Map((item.stockBySite ?? []).map((s) => [s.siteId, s.onHand]))
+
+                  return (
+                    <tr key={item.inventoryItemDefinitionId} className='border-t'>
+                      <td className='px-3 py-2'>
+                        <div className='flex items-center gap-2'>
+                          <span className='text-sm font-medium'>{item.sizeValue ?? 'Única'}</span>
+                          {!item.isActive && (
+                            <Badge variant='outline' className='text-destructive border-destructive/30 text-[10px]'>
+                              Inactivo
+                            </Badge>
+                          )}
+                        </div>
+                      </td>
+                      <td className='text-muted-foreground max-w-57.5 truncate px-3 py-2 text-[10px]' title={`#sym:${item.skuCode}`}>
+                        #sym:{item.skuCode}
+                      </td>
+                      {siteColumns.map((site) => {
+                        const qty = stockMap.get(site.siteId) ?? 0
+                        return (
+                          <td key={`${item.inventoryItemDefinitionId}-${site.siteId}`} className='px-2 py-2 text-center'>
+                            <Badge variant={qty > 0 ? 'secondary' : 'outline'} className='text-[10px]'>
+                              {qty}
+                            </Badge>
+                          </td>
+                        )
+                      })}
+                      <td className='px-2 py-2 text-center'>
+                        <span className='inline-flex items-center gap-1'>
+                          <WarehouseIcon className='text-muted-foreground size-3' />
+                          <Badge variant={item.stockTotal > 0 ? 'secondary' : 'outline'} className='text-[10px]'>
+                            {item.stockTotal}
+                          </Badge>
                         </span>
-                      )}
-                      <span className={`text-sm font-semibold ${item.priceKind === 'PROMO' ? 'text-green-600 dark:text-green-400' : ''}`}>
-                        ${item.priceAmount.toFixed(2)}
-                      </span>
-                      {item.priceKind === 'PROMO' && item.promoName && (
-                        <Badge variant='secondary' className='text-[9px]'>
-                          {item.promoName}
-                        </Badge>
-                      )}
-                    </>
-                  ) : (
-                    <span className='text-muted-foreground text-xs italic'>Sin precio</span>
-                  )}
-                </div>
-              </div>
-            ))}
+                      </td>
+                      <td className='px-3 py-2 text-right'>
+                        {item.priceAmount != null ? (
+                          <span className='inline-flex items-center justify-end gap-1.5'>
+                            {item.priceKind === 'PROMO' && item.basePriceAmount != null && (
+                              <span className='text-muted-foreground text-xs line-through'>
+                                ${item.basePriceAmount.toFixed(2)}
+                              </span>
+                            )}
+                            <span className={`text-sm font-semibold ${item.priceKind === 'PROMO' ? 'text-green-600 dark:text-green-400' : ''}`}>
+                              ${item.priceAmount.toFixed(2)}
+                            </span>
+                            {item.priceKind === 'PROMO' && item.promoName && (
+                              <Badge variant='secondary' className='text-[9px]'>
+                                {item.promoName}
+                              </Badge>
+                            )}
+                          </span>
+                        ) : (
+                          <span className='text-muted-foreground text-xs italic'>Sin precio</span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         </CollapsibleContent>
       </Collapsible>

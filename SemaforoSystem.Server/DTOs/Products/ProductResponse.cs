@@ -152,4 +152,20 @@ public class VisualDefinitionItem
     public decimal? BasePriceAmount { get; set; }
     /// <summary>Promo name if applicable.</summary>
     public string? PromoName { get; set; }
+
+    // ── Inventory balance (aggregated across all sites) ──
+    /// <summary>Total on-hand stock across all sites.</summary>
+    public int StockTotal { get; set; }
+
+    /// <summary>Stock detail by site/sucursal.</summary>
+    public List<VisualDefinitionItemSiteStock> StockBySite { get; set; } = [];
+}
+
+public class VisualDefinitionItemSiteStock
+{
+    public int SiteId { get; set; }
+    public string SiteName { get; set; } = string.Empty;
+    public int OnHand { get; set; }
+    public int Reserved { get; set; }
+    public int Available => OnHand - Reserved;
 }

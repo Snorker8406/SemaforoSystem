@@ -32,7 +32,7 @@ export const productKeys = {
   categories: () => ['product-categories'] as const,
   schools: (productId: number) => [...productKeys.all, 'schools', productId] as const,
   itemDefinitions: (productId: number) => [...productKeys.all, 'item-definitions', productId] as const,
-  visualDefinitions: (productId: number) => [...productKeys.all, 'visual-definitions', productId] as const,
+  visualDefinitions: (productId: number) => [...productKeys.all, 'visual-definitions-v2', productId] as const,
 }
 
 // ── Queries ──────────────────────────────────────────────
@@ -99,7 +99,8 @@ export function useProductVisualDefinitions(productId: number | null | undefined
     queryKey: productKeys.visualDefinitions(productId!),
     queryFn: () => getProductVisualDefinitions(productId!),
     enabled: productId != null,
-    staleTime: 5 * 60 * 1000, // 5 min
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
 }
 

@@ -544,6 +544,47 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             }
         }
 
+        // ── Resolve inventory balances (aggregated + by site) ──
+        {
+            var allItemDefIds = groups.SelectMany(g => g.Items.Select(i => i.InventoryItemDefinitionId)).ToList();
+            if (allItemDefIds.Count > 0)
+            {
+                var balances = await db.InventoryBalances
+                    .AsNoTracking()
+                    .Where(b => allItemDefIds.Contains(b.InventoryItemDefinitionId))
+                    .Include(b => b.Site)
+                    .Select(b => new
+                    {
+                        DefId = b.InventoryItemDefinitionId,
+                        b.SiteId,
+                        SiteName = b.Site.Name,
+                        OnHand = b.OnHand ?? 0,
+                        Reserved = b.Reserved ?? 0,
+                    })
+                    .ToListAsync(ct);
+
+                var stockByDefMap = balances
+                    .GroupBy(b => b.DefId)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.OrderBy(x => x.SiteName)
+                            .Select(x => new VisualDefinitionItemSiteStock
+                            {
+                                SiteId = x.SiteId,
+                                SiteName = x.SiteName,
+                                OnHand = x.OnHand,
+                                Reserved = x.Reserved,
+                            })
+                            .ToList());
+
+                foreach (var item in groups.SelectMany(g => g.Items))
+                {
+                    item.StockBySite = stockByDefMap.GetValueOrDefault(item.InventoryItemDefinitionId, []);
+                    item.StockTotal = item.StockBySite.Sum(s => s.OnHand);
+                }
+            }
+        }
+
         return Ok(groups);
 
         static void ApplyPrice(VisualDefinitionItem item, decimal amount, string kind, string scope, string? promoName)
