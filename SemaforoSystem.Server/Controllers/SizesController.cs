@@ -433,7 +433,6 @@ public class SizesController(ApplicationDbContext db) : ControllerBase
     public async Task<IActionResult> DeleteSize(int id, CancellationToken ct)
     {
         var entity = await db.Sizes
-            .Include(s => s.Stocks)
             .Include(s => s.SalesDetails)
             .FirstOrDefaultAsync(s => s.SizeId == id, ct);
 
@@ -441,7 +440,6 @@ public class SizesController(ApplicationDbContext db) : ControllerBase
             return NotFound(new { message = $"Talla con ID {id} no encontrada." });
 
         var conflicts = new List<string>();
-        if (entity.Stocks.Count > 0) conflicts.Add($"{entity.Stocks.Count} registro(s) de stock");
         if (entity.SalesDetails.Count > 0) conflicts.Add($"{entity.SalesDetails.Count} detalle(s) de venta");
 
         if (conflicts.Count > 0)

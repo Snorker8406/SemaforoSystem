@@ -26,7 +26,7 @@ public partial class File
     public int? SchoolId { get; set; }
 
     [Column("account_id")]
-    public int? AccountId { get; set; }
+    public long? AccountId { get; set; }
 
     [Column("provider_account_id")]
     public int? ProviderAccountId { get; set; }

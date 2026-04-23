@@ -40,9 +40,6 @@ public partial class Sale
     [Precision(19, 4)]
     public decimal? Total { get; set; }
 
-    [InverseProperty("Sale")]
-    public virtual ICollection<Account> Accounts { get; set; } = new List<Account>();
-
     [ForeignKey("ClientId")]
     [InverseProperty("Sales")]
     public virtual Client? Client { get; set; }

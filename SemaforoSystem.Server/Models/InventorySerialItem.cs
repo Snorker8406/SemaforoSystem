@@ -36,6 +36,9 @@ public partial class InventorySerialItem
     [Column("deactivated_at")]
     public DateTime? DeactivatedAt { get; set; }
 
+    [InverseProperty("InventorySerialItem")]
+    public virtual AccountItemSerialItem? AccountItemSerialItem { get; set; }
+
     [ForeignKey("CurrentSiteId")]
     [InverseProperty("InventorySerialItems")]
     public virtual Site CurrentSite { get; set; } = null!;

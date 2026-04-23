@@ -17,9 +17,15 @@ public partial class ApplicationDbContext : DbContext
 
     public virtual DbSet<Account> Accounts { get; set; }
 
-    public virtual DbSet<AccountPayment> AccountPayments { get; set; }
+    public virtual DbSet<AccountInstallment> AccountInstallments { get; set; }
+
+    public virtual DbSet<AccountItem> AccountItems { get; set; }
+
+    public virtual DbSet<AccountItemSerialItem> AccountItemSerialItems { get; set; }
 
     public virtual DbSet<AccountStatus> AccountStatuses { get; set; }
+
+    public virtual DbSet<AccountTransaction> AccountTransactions { get; set; }
 
     public virtual DbSet<AccountType> AccountTypes { get; set; }
 
@@ -49,13 +55,19 @@ public partial class ApplicationDbContext : DbContext
 
     public virtual DbSet<ClientStatus> ClientStatuses { get; set; }
 
+    public virtual DbSet<CreditAccount> CreditAccounts { get; set; }
+
     public virtual DbSet<Embroidery> Embroideries { get; set; }
 
     public virtual DbSet<Employee> Employees { get; set; }
 
+    public virtual DbSet<EmployeeIdentityUser> EmployeeIdentityUsers { get; set; }
+
     public virtual DbSet<EmployeeSalary> EmployeeSalaries { get; set; }
 
     public virtual DbSet<EmployeeSchedule> EmployeeSchedules { get; set; }
+
+    public virtual DbSet<EmploymentStatus> EmploymentStatuses { get; set; }
 
     public virtual DbSet<File> Files { get; set; }
 
@@ -70,6 +82,8 @@ public partial class ApplicationDbContext : DbContext
     public virtual DbSet<InventoryTransaction> InventoryTransactions { get; set; }
 
     public virtual DbSet<InventoryTransactionLine> InventoryTransactionLines { get; set; }
+
+    public virtual DbSet<LayawayAccount> LayawayAccounts { get; set; }
 
     public virtual DbSet<PriceItemDefinitionEntry> PriceItemDefinitionEntries { get; set; }
 
@@ -135,12 +149,6 @@ public partial class ApplicationDbContext : DbContext
 
     public virtual DbSet<SizeSystem> SizeSystems { get; set; }
 
-    public virtual DbSet<Stock> Stocks { get; set; }
-
-    public virtual DbSet<StockEntry> StockEntries { get; set; }
-
-    public virtual DbSet<StockExpense> StockExpenses { get; set; }
-
     public virtual DbSet<VCurrentBasePricesItemDefinition> VCurrentBasePricesItemDefinitions { get; set; }
 
     public virtual DbSet<VCurrentBasePricesProduct> VCurrentBasePricesProducts { get; set; }
@@ -165,56 +173,97 @@ public partial class ApplicationDbContext : DbContext
         {
             entity.HasKey(e => e.AccountId).HasName("accounts_pkey");
 
-            entity.Property(e => e.OpeningDate).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.CurrencyCode).HasDefaultValueSql("'MXN'::character varying");
+            entity.Property(e => e.OpeningDate).HasDefaultValueSql("now()");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()");
 
             entity.HasOne(d => d.AccountStatus).WithMany(p => p.Accounts)
-                .OnDelete(DeleteBehavior.ClientSetNull)
+                .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("accounts_account_status_id_fkey");
 
             entity.HasOne(d => d.AccountType).WithMany(p => p.Accounts)
-                .OnDelete(DeleteBehavior.ClientSetNull)
+                .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("accounts_account_type_id_fkey");
 
             entity.HasOne(d => d.Client).WithMany(p => p.Accounts)
-                .OnDelete(DeleteBehavior.ClientSetNull)
+                .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("accounts_client_id_fkey");
 
-            entity.HasOne(d => d.Employee).WithMany(p => p.Accounts)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("accounts_employee_id_fkey");
-
-            entity.HasOne(d => d.Sale).WithMany(p => p.Accounts)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("accounts_sale_id_fkey");
+            entity.HasOne(d => d.OpenedByEmployee).WithMany(p => p.Accounts)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("accounts_opened_by_employee_id_fkey");
 
             entity.HasOne(d => d.Site).WithMany(p => p.Accounts)
-                .OnDelete(DeleteBehavior.ClientSetNull)
+                .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("accounts_site_id_fkey");
         });
 
-        modelBuilder.Entity<AccountPayment>(entity =>
+        modelBuilder.Entity<AccountInstallment>(entity =>
         {
-            entity.HasKey(e => e.AccountPaymentId).HasName("account_payments_pkey");
+            entity.HasKey(e => e.AccountInstallmentId).HasName("account_installments_pkey");
 
-            entity.Property(e => e.PaymentDate).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasOne(d => d.Account).WithMany(p => p.AccountInstallments).HasConstraintName("account_installments_account_id_fkey");
+        });
 
-            entity.HasOne(d => d.Account).WithMany(p => p.AccountPayments)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("account_payments_account_id_fkey");
+        modelBuilder.Entity<AccountItem>(entity =>
+        {
+            entity.HasKey(e => e.AccountItemId).HasName("account_items_pkey");
 
-            entity.HasOne(d => d.Employee).WithMany(p => p.AccountPayments)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("account_payments_employee_id_fkey");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.Account).WithMany(p => p.AccountItems).HasConstraintName("account_items_account_id_fkey");
+
+            entity.HasOne(d => d.InventoryItemDefinition).WithMany(p => p.AccountItems)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("account_items_inventory_item_definition_id_fkey");
+
+            entity.HasOne(d => d.Product).WithMany(p => p.AccountItems)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("account_items_product_id_fkey");
+
+            entity.HasOne(d => d.ProductVisualDefinition).WithMany(p => p.AccountItems)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("account_items_product_visual_definition_id_fkey");
+        });
+
+        modelBuilder.Entity<AccountItemSerialItem>(entity =>
+        {
+            entity.HasKey(e => new { e.AccountItemId, e.InventorySerialItemId }).HasName("account_item_serial_items_pkey");
+
+            entity.HasOne(d => d.AccountItem).WithMany(p => p.AccountItemSerialItems).HasConstraintName("account_item_serial_items_account_item_id_fkey");
+
+            entity.HasOne(d => d.InventorySerialItem).WithOne(p => p.AccountItemSerialItem)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("account_item_serial_items_inventory_serial_item_id_fkey");
         });
 
         modelBuilder.Entity<AccountStatus>(entity =>
         {
-            entity.HasKey(e => e.AccountStatusId).HasName("account_status_pkey");
+            entity.HasKey(e => e.AccountStatusId).HasName("account_statuses_pkey");
+
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+        });
+
+        modelBuilder.Entity<AccountTransaction>(entity =>
+        {
+            entity.HasKey(e => e.AccountTransactionId).HasName("account_transactions_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.TransactionDate).HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.Account).WithMany(p => p.AccountTransactions).HasConstraintName("account_transactions_account_id_fkey");
+
+            entity.HasOne(d => d.CreatedByEmployee).WithMany(p => p.AccountTransactions)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("account_transactions_created_by_employee_id_fkey");
         });
 
         modelBuilder.Entity<AccountType>(entity =>
         {
             entity.HasKey(e => e.AccountTypeId).HasName("account_types_pkey");
+
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
         });
 
         modelBuilder.Entity<Archive>(entity =>
@@ -267,6 +316,7 @@ public partial class ApplicationDbContext : DbContext
             entity.HasKey(e => e.ClientId).HasName("clients_pkey");
 
             entity.Property(e => e.CreateDate).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.LastModify).HasDefaultValueSql("now()");
 
             entity.HasOne(d => d.ClientCategory).WithMany(p => p.Clients)
                 .OnDelete(DeleteBehavior.ClientSetNull)
@@ -293,6 +343,15 @@ public partial class ApplicationDbContext : DbContext
             entity.Property(e => e.ClientStatusId).ValueGeneratedNever();
         });
 
+        modelBuilder.Entity<CreditAccount>(entity =>
+        {
+            entity.HasKey(e => e.AccountId).HasName("credit_accounts_pkey");
+
+            entity.Property(e => e.AccountId).ValueGeneratedNever();
+
+            entity.HasOne(d => d.Account).WithOne(p => p.CreditAccount).HasConstraintName("credit_accounts_account_id_fkey");
+        });
+
         modelBuilder.Entity<Embroidery>(entity =>
         {
             entity.HasKey(e => e.EmbroideryId).HasName("embroideries_pkey");
@@ -308,6 +367,21 @@ public partial class ApplicationDbContext : DbContext
 
             entity.Property(e => e.Active).HasDefaultValue(true);
             entity.Property(e => e.CreateDate).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.HasOne(d => d.EmploymentStatus).WithMany(p => p.Employees)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("employees_employment_status_id_fkey");
+        });
+
+        modelBuilder.Entity<EmployeeIdentityUser>(entity =>
+        {
+            entity.HasKey(e => e.AspnetUserId).HasName("employee_identity_users_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.AspnetUser).WithOne(p => p.EmployeeIdentityUser).HasConstraintName("employee_identity_users_aspnet_user_id_fkey");
+
+            entity.HasOne(d => d.Employee).WithOne(p => p.EmployeeIdentityUser).HasConstraintName("employee_identity_users_employee_id_fkey");
         });
 
         modelBuilder.Entity<EmployeeSalary>(entity =>
@@ -328,13 +402,22 @@ public partial class ApplicationDbContext : DbContext
                 .HasConstraintName("employee_schedule_employee_id_fkey");
         });
 
+        modelBuilder.Entity<EmploymentStatus>(entity =>
+        {
+            entity.HasKey(e => e.EmploymentStatusId).HasName("employment_statuses_pkey");
+
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+        });
+
         modelBuilder.Entity<File>(entity =>
         {
             entity.HasKey(e => e.FileId).HasName("files_pkey");
 
             entity.Property(e => e.CreateDate).HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-            entity.HasOne(d => d.Account).WithMany(p => p.Files).HasConstraintName("files_account_id_fkey");
+            entity.HasOne(d => d.Account).WithMany(p => p.Files)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("files_account_id_fkey");
 
             entity.HasOne(d => d.Archive).WithMany(p => p.Files)
                 .OnDelete(DeleteBehavior.Cascade)
@@ -506,6 +589,15 @@ public partial class ApplicationDbContext : DbContext
                             .ValueGeneratedOnAdd()
                             .HasColumnName("inventory_serial_item_id");
                     });
+        });
+
+        modelBuilder.Entity<LayawayAccount>(entity =>
+        {
+            entity.HasKey(e => e.AccountId).HasName("layaway_accounts_pkey");
+
+            entity.Property(e => e.AccountId).ValueGeneratedNever();
+
+            entity.HasOne(d => d.Account).WithOne(p => p.LayawayAccount).HasConstraintName("layaway_accounts_account_id_fkey");
         });
 
         modelBuilder.Entity<PriceItemDefinitionEntry>(entity =>
@@ -984,62 +1076,6 @@ public partial class ApplicationDbContext : DbContext
         modelBuilder.Entity<SizeSystem>(entity =>
         {
             entity.HasKey(e => e.SizeSystemId).HasName("size_system_pkey");
-        });
-
-        modelBuilder.Entity<Stock>(entity =>
-        {
-            entity.HasKey(e => e.StockId).HasName("stock_pkey");
-
-            entity.Property(e => e.StockId).HasDefaultValueSql("nextval('stock_stock_id_seq'::regclass)");
-            entity.Property(e => e.Barcode).HasDefaultValueSql("'100'::character varying");
-            entity.Property(e => e.CreateDate).HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-            entity.HasOne(d => d.Product).WithMany(p => p.Stocks)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("stock_product_id_fkey");
-
-            entity.HasOne(d => d.SaleDetail).WithMany(p => p.Stocks).HasConstraintName("stock_sale_detail_id_fkey");
-
-            entity.HasOne(d => d.Site).WithMany(p => p.Stocks)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("stock_site_id_fkey");
-
-            entity.HasOne(d => d.Size).WithMany(p => p.Stocks).HasConstraintName("stock_size_id_fkey");
-
-            entity.HasOne(d => d.StockEntry).WithMany(p => p.Stocks).HasConstraintName("stock_stock_entry_id_fkey");
-
-            entity.HasMany(d => d.Embroideries).WithMany(p => p.Stocks)
-                .UsingEntity<Dictionary<string, object>>(
-                    "StockEmbroidery",
-                    r => r.HasOne<Embroidery>().WithMany()
-                        .HasForeignKey("EmbroideryId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("stock_embroidery_embroidery_id_fkey"),
-                    l => l.HasOne<Stock>().WithMany()
-                        .HasForeignKey("StockId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("stock_embroidery_stock_id_fkey"),
-                    j =>
-                    {
-                        j.HasKey("StockId", "EmbroideryId").HasName("stock_embroidery_pkey");
-                        j.ToTable("stock_embroidery");
-                        j.IndexerProperty<int>("StockId").HasColumnName("stock_id");
-                        j.IndexerProperty<int>("EmbroideryId").HasColumnName("embroidery_id");
-                    });
-        });
-
-        modelBuilder.Entity<StockEntry>(entity =>
-        {
-            entity.HasKey(e => e.StockEntryId).HasName("stock_entries_pkey");
-        });
-
-        modelBuilder.Entity<StockExpense>(entity =>
-        {
-            entity.HasKey(e => e.StockExpenseId).HasName("stock_expenses_pkey");
-
-            entity.HasOne(d => d.StockEntry).WithMany(p => p.StockExpenses)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("stock_expenses_stock_entry_id_fkey");
         });
 
         modelBuilder.Entity<VCurrentBasePricesItemDefinition>(entity =>

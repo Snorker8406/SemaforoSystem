@@ -59,8 +59,4 @@ public partial class Embroidery
     [ForeignKey("SchoolId")]
     [InverseProperty("Embroideries")]
     public virtual School? School { get; set; }
-
-    [ForeignKey("EmbroideryId")]
-    [InverseProperty("Embroideries")]
-    public virtual ICollection<Stock> Stocks { get; set; } = new List<Stock>();
 }

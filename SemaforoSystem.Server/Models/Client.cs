@@ -25,22 +25,22 @@ public partial class Client
     [Column("create_date", TypeName = "timestamp without time zone")]
     public DateTime? CreateDate { get; set; }
 
-    [Column("last_modify", TypeName = "timestamp without time zone")]
+    [Column("last_modify")]
     public DateTime LastModify { get; set; }
 
     [Column("last_modified_by")]
-    public int LastModifiedBy { get; set; }
+    public int? LastModifiedBy { get; set; }
 
     [Column("name")]
-    [StringLength(30)]
+    [StringLength(120)]
     public string Name { get; set; } = null!;
 
     [Column("last_name")]
-    [StringLength(30)]
+    [StringLength(120)]
     public string LastName { get; set; } = null!;
 
     [Column("last_name_mother")]
-    [StringLength(30)]
+    [StringLength(120)]
     public string? LastNameMother { get; set; }
 
     [Column("gender")]

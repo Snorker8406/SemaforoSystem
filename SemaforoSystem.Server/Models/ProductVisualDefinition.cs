@@ -26,6 +26,9 @@ public partial class ProductVisualDefinition
     public DateTime CreatedAt { get; set; }
 
     [InverseProperty("ProductVisualDefinition")]
+    public virtual ICollection<AccountItem> AccountItems { get; set; } = new List<AccountItem>();
+
+    [InverseProperty("ProductVisualDefinition")]
     public virtual ICollection<InventoryItemDefinition> InventoryItemDefinitions { get; set; } = new List<InventoryItemDefinition>();
 
     [InverseProperty("ProductVisualDefinition")]

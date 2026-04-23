@@ -70,7 +70,4 @@ public partial class Site
 
     [InverseProperty("Site")]
     public virtual ICollection<Sale> Sales { get; set; } = new List<Sale>();
-
-    [InverseProperty("Site")]
-    public virtual ICollection<Stock> Stocks { get; set; } = new List<Stock>();
 }

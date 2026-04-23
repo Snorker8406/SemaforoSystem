@@ -35,13 +35,17 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             CategoryId = c.CategoryId,
             Name = c.Name,
         }).ToList(),
-        SchoolCount = product.ProductVisualDefinitions
-            .SelectMany(vd => vd.ProductVisualDefinitionSchools)
-            .Select(pvds => pvds.SchoolId)
-            .Distinct()
-            .Count(),
+        // SchoolCount = product.ProductVisualDefinitions
+        //     .SelectMany(vd => vd.ProductVisualDefinitionSchools)
+        //     .Select(pvds => pvds.SchoolId)
+        //     .Distinct()
+        //     .Count(),
+        SchoolCount = 0,
         HasPicture = product.ProductImageTarget is not null,
-        StockTotal = product.Stocks.Sum(s => s.Quantity ?? 0),
+        // StockTotal = product.InventoryItemDefinitions
+        //     .SelectMany(d => d.InventoryBalances)
+        //     .Sum(b => b.OnHand ?? 0),
+        StockTotal = 0,
         LatestCost = product.ProductCosts
             .OrderByDescending(c => c.CreateDate)
             .Select(c => (decimal?)c.Cost)
@@ -68,10 +72,11 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             .Include(p => p.Brand)
             .Include(p => p.SizeSystem)
             .Include(p => p.Categories)
-            .Include(p => p.ProductVisualDefinitions)
-                .ThenInclude(vd => vd.ProductVisualDefinitionSchools)
+            // .Include(p => p.InventoryItemDefinitions)
+            //     .ThenInclude(d => d.InventoryBalances)
+            // .Include(p => p.ProductVisualDefinitions)
+            //     .ThenInclude(vd => vd.ProductVisualDefinitionSchools)
             .Include(p => p.ProductImageTarget)
-            .Include(p => p.Stocks)
             .Include(p => p.ProductCosts)
             .Include(p => p.ProductVariantSystems)
             .AsNoTracking()
@@ -99,9 +104,13 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             q = q.Where(p => p.Serialize == query.Serialize.Value);
 
         if (query.HasStock == true)
-            q = q.Where(p => p.Stocks.Any(s => s.Quantity > 0));
+            q = q.Where(p => p.InventoryItemDefinitions
+                .SelectMany(d => d.InventoryBalances)
+                .Any(b => (b.OnHand ?? 0) > 0));
         else if (query.HasStock == false)
-            q = q.Where(p => !p.Stocks.Any(s => s.Quantity > 0));
+            q = q.Where(p => !p.InventoryItemDefinitions
+                .SelectMany(d => d.InventoryBalances)
+                .Any(b => (b.OnHand ?? 0) > 0));
 
         // ── Search (name, barcode, description) — multi-word match ──
         if (!string.IsNullOrWhiteSpace(query.Search))
@@ -136,8 +145,8 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
                 ? q.OrderByDescending(p => p.ProductVisualDefinitions.SelectMany(vd => vd.ProductVisualDefinitionSchools).Select(pvds => pvds.SchoolId).Distinct().Count())
                 : q.OrderBy(p => p.ProductVisualDefinitions.SelectMany(vd => vd.ProductVisualDefinitionSchools).Select(pvds => pvds.SchoolId).Distinct().Count()),
             "stocktotal" => query.SortDescending
-                ? q.OrderByDescending(p => p.Stocks.Sum(s => s.Quantity ?? 0))
-                : q.OrderBy(p => p.Stocks.Sum(s => s.Quantity ?? 0)),
+                ? q.OrderByDescending(p => p.InventoryItemDefinitions.SelectMany(d => d.InventoryBalances).Sum(b => b.OnHand ?? 0))
+                : q.OrderBy(p => p.InventoryItemDefinitions.SelectMany(d => d.InventoryBalances).Sum(b => b.OnHand ?? 0)),
             "latestcost" => query.SortDescending
                 ? q.OrderByDescending(p => p.ProductCosts.OrderByDescending(pc => pc.CreateDate).Select(pc => (decimal?)pc.Cost).FirstOrDefault())
                 : q.OrderBy(p => p.ProductCosts.OrderByDescending(pc => pc.CreateDate).Select(pc => (decimal?)pc.Cost).FirstOrDefault()),
@@ -146,11 +155,12 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
 
         var totalCount = await q.CountAsync(ct);
 
-        var items = await q
+        var products = await q
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
-            .Select(p => MapToResponse(p))
             .ToListAsync(ct);
+
+        var items = products.Select(MapToResponse).ToList();
 
         return Ok(new PagedResponse<ProductResponse>
         {
@@ -175,10 +185,11 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             .Include(p => p.Brand)
             .Include(p => p.SizeSystem)
             .Include(p => p.Categories)
-            .Include(p => p.ProductVisualDefinitions)
-                .ThenInclude(vd => vd.ProductVisualDefinitionSchools)
+            // .Include(p => p.InventoryItemDefinitions)
+            //     .ThenInclude(d => d.InventoryBalances)
+            // .Include(p => p.ProductVisualDefinitions)
+            //     .ThenInclude(vd => vd.ProductVisualDefinitionSchools)
             .Include(p => p.ProductImageTarget)
-            .Include(p => p.Stocks)
             .Include(p => p.ProductCosts)
             .Include(p => p.ProductVariantSystems)
             .AsNoTracking()
@@ -692,9 +703,9 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
         await db.Entry(product).Reference(p => p.Brand).LoadAsync(ct);
         await db.Entry(product).Reference(p => p.SizeSystem).LoadAsync(ct);
         await db.Entry(product).Collection(p => p.Categories).LoadAsync(ct);
+        await db.Entry(product).Collection(p => p.InventoryItemDefinitions).LoadAsync(ct);
         await db.Entry(product).Collection(p => p.ProductVisualDefinitions).LoadAsync(ct);
         await db.Entry(product).Reference(p => p.ProductImageTarget).LoadAsync(ct);
-        await db.Entry(product).Collection(p => p.Stocks).LoadAsync(ct);
         await db.Entry(product).Collection(p => p.ProductCosts).LoadAsync(ct);
         await db.Entry(product).Collection(p => p.ProductVariantSystems).LoadAsync(ct);
 
@@ -719,10 +730,11 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             .Include(p => p.Brand)
             .Include(p => p.SizeSystem)
             .Include(p => p.Categories)
+            .Include(p => p.InventoryItemDefinitions)
+                .ThenInclude(d => d.InventoryBalances)
             .Include(p => p.ProductVisualDefinitions)
                 .ThenInclude(vd => vd.ProductVisualDefinitionSchools)
             .Include(p => p.ProductImageTarget)
-            .Include(p => p.Stocks)
             .Include(p => p.ProductCosts)
             .Include(p => p.ProductVariantSystems)
             .FirstOrDefaultAsync(p => p.ProductId == id, ct);
@@ -827,9 +839,10 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         var product = await db.Products
+            .Include(p => p.InventoryItemDefinitions)
+                .ThenInclude(d => d.InventoryBalances)
             .Include(p => p.ProductVisualDefinitions)
                 .ThenInclude(vd => vd.ProductVisualDefinitionSchools)
-            .Include(p => p.Stocks)
             .Include(p => p.SalesDetails)
             .Include(p => p.ProductCosts)
             .FirstOrDefaultAsync(p => p.ProductId == id, ct);
@@ -844,8 +857,11 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
             .Select(pvds => pvds.SchoolId)
             .Distinct()
             .Count();
+        var inventoryDefinitionCount = product.InventoryItemDefinitions.Count;
+        var inventoryBalanceCount = product.InventoryItemDefinitions.Sum(d => d.InventoryBalances.Count);
         if (schoolCount > 0) conflicts.Add($"{schoolCount} escuela(s)");
-        if (product.Stocks.Count > 0) conflicts.Add($"{product.Stocks.Count} registro(s) de stock");
+        if (inventoryDefinitionCount > 0) conflicts.Add($"{inventoryDefinitionCount} definicion(es) de inventario");
+        if (inventoryBalanceCount > 0) conflicts.Add($"{inventoryBalanceCount} registro(s) de balance de inventario");
         if (product.SalesDetails.Count > 0) conflicts.Add($"{product.SalesDetails.Count} detalle(s) de venta");
         if (product.ProductCosts.Count > 0) conflicts.Add($"{product.ProductCosts.Count} costo(s)");
 

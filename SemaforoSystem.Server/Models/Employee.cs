@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace SemaforoSystem.Server.Models;
 
 [Table("employees")]
+[Index("EmploymentStatusId", Name = "idx_employees_employment_status_id")]
 public partial class Employee
 {
     [Key]
@@ -85,10 +86,13 @@ public partial class Employee
     [StringLength(500)]
     public string? Comments { get; set; }
 
-    [InverseProperty("Employee")]
-    public virtual ICollection<AccountPayment> AccountPayments { get; set; } = new List<AccountPayment>();
+    [Column("employment_status_id")]
+    public int? EmploymentStatusId { get; set; }
 
-    [InverseProperty("Employee")]
+    [InverseProperty("CreatedByEmployee")]
+    public virtual ICollection<AccountTransaction> AccountTransactions { get; set; } = new List<AccountTransaction>();
+
+    [InverseProperty("OpenedByEmployee")]
     public virtual ICollection<Account> Accounts { get; set; } = new List<Account>();
 
     [InverseProperty("Employee")]
@@ -98,10 +102,17 @@ public partial class Employee
     public virtual ICollection<Client> Clients { get; set; } = new List<Client>();
 
     [InverseProperty("Employee")]
+    public virtual EmployeeIdentityUser? EmployeeIdentityUser { get; set; }
+
+    [InverseProperty("Employee")]
     public virtual ICollection<EmployeeSalary> EmployeeSalaries { get; set; } = new List<EmployeeSalary>();
 
     [InverseProperty("Employee")]
     public virtual ICollection<EmployeeSchedule> EmployeeSchedules { get; set; } = new List<EmployeeSchedule>();
+
+    [ForeignKey("EmploymentStatusId")]
+    [InverseProperty("Employees")]
+    public virtual EmploymentStatus? EmploymentStatus { get; set; }
 
     [InverseProperty("Employee")]
     public virtual ICollection<File> Files { get; set; } = new List<File>();

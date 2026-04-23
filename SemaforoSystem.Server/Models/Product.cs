@@ -48,6 +48,9 @@ public partial class Product
     [Column("size_system_id")]
     public int? SizeSystemId { get; set; }
 
+    [InverseProperty("Product")]
+    public virtual ICollection<AccountItem> AccountItems { get; set; } = new List<AccountItem>();
+
     [ForeignKey("BrandId")]
     [InverseProperty("Products")]
     public virtual Brand? Brand { get; set; }
@@ -76,9 +79,6 @@ public partial class Product
     [ForeignKey("SizeSystemId")]
     [InverseProperty("Products")]
     public virtual SizeSystem? SizeSystem { get; set; }
-
-    [InverseProperty("Product")]
-    public virtual ICollection<Stock> Stocks { get; set; } = new List<Stock>();
 
     [ForeignKey("ProductId")]
     [InverseProperty("Products")]

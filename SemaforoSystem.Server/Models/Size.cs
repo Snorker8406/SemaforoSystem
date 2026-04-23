@@ -36,7 +36,4 @@ public partial class Size
     [ForeignKey("SizeSystemId")]
     [InverseProperty("Sizes")]
     public virtual SizeSystem? SizeSystem { get; set; }
-
-    [InverseProperty("Size")]
-    public virtual ICollection<Stock> Stocks { get; set; } = new List<Stock>();
 }

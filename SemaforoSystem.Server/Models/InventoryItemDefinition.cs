@@ -45,6 +45,9 @@ public partial class InventoryItemDefinition
     public long? ProductVisualDefinitionId { get; set; }
 
     [InverseProperty("InventoryItemDefinition")]
+    public virtual ICollection<AccountItem> AccountItems { get; set; } = new List<AccountItem>();
+
+    [InverseProperty("InventoryItemDefinition")]
     public virtual ICollection<InventoryBalance> InventoryBalances { get; set; } = new List<InventoryBalance>();
 
     [InverseProperty("InventoryItemDefinition")]
