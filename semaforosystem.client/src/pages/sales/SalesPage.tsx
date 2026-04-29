@@ -185,7 +185,10 @@ function createColumns(): ColumnDef<SaleListItem>[] {
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant='ghost' size='icon' asChild>
-                <Link to={`/sales/${row.original.saleId}`}>
+                <Link
+                  to='/sales/$saleId'
+                  params={{ saleId: String(row.original.saleId) }}
+                >
                   <EyeIcon className='size-4' />
                 </Link>
               </Button>

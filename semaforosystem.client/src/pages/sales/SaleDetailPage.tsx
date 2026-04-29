@@ -150,7 +150,8 @@ function SaleHeader({ sale }: { sale: SaleDetailResponse }) {
           </p>
           {sale.accountId && (
             <Link
-              to={`/accounts/${sale.accountId}`}
+              to='/accounts/$accountId'
+              params={{ accountId: String(sale.accountId) }}
               className='text-primary mt-1 inline-flex items-center gap-1 text-xs hover:underline'
             >
               <WalletIcon className='size-3' />
@@ -369,7 +370,8 @@ function InfoTab({ sale }: { sale: SaleDetailResponse }) {
             value={
               sale.accountId ? (
                 <Link
-                  to={`/accounts/${sale.accountId}`}
+                  to='/accounts/$accountId'
+                  params={{ accountId: String(sale.accountId) }}
                   className='text-primary hover:underline'
                 >
                   #{sale.accountId}

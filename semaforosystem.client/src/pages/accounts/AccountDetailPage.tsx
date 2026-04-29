@@ -27,7 +27,6 @@ import { toast } from 'sonner'
 
 import {
   getAccount,
-  cancelAccount,
   deliverLayaway,
   markLayawayReady,
 } from '@/services/account-service'

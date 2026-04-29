@@ -172,7 +172,10 @@ function createColumns(): ColumnDef<AccountListItem>[] {
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant='ghost' size='icon' asChild>
-                <Link to={`/accounts/${row.original.accountId}`}>
+                <Link
+                  to='/accounts/$accountId'
+                  params={{ accountId: String(row.original.accountId) }}
+                >
                   <EyeIcon className='size-4' />
                 </Link>
               </Button>
