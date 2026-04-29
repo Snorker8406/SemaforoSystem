@@ -113,7 +113,8 @@ public class AccountsController(ApplicationDbContext db) : ControllerBase
             q = q.Where(a =>
                 (a.Reference != null && EF.Functions.ILike(a.Reference, $"%{term}%")) ||
                 EF.Functions.ILike(a.Client.Name, $"%{term}%") ||
-                EF.Functions.ILike(a.Client.LastName, $"%{term}%"));
+                EF.Functions.ILike(a.Client.LastName, $"%{term}%") ||
+                (a.Client.LastNameMother != null && EF.Functions.ILike(a.Client.LastNameMother, $"%{term}%")));
         }
 
         q = (query.SortBy?.ToLowerInvariant()) switch
@@ -132,7 +133,9 @@ public class AccountsController(ApplicationDbContext db) : ControllerBase
             {
                 a.AccountId,
                 a.ClientId,
-                ClientName = a.Client.Name + " " + (a.Client.LastName ?? string.Empty),
+                ClientName = (a.Client.Name ?? string.Empty)
+                    + " " + (a.Client.LastName ?? string.Empty)
+                    + " " + (a.Client.LastNameMother ?? string.Empty),
                 a.SiteId,
                 SiteName = a.Site.Name,
                 a.AccountTypeId,
@@ -999,7 +1002,7 @@ public class AccountsController(ApplicationDbContext db) : ControllerBase
         {
             AccountId = a.AccountId,
             ClientId = a.ClientId,
-            ClientName = ($"{a.Client?.Name} {a.Client?.LastName}").Trim(),
+            ClientName = ($"{a.Client?.Name} {a.Client?.LastName} {a.Client?.LastNameMother}").Trim(),
             SiteId = a.SiteId,
             SiteName = a.Site?.Name,
             AccountTypeId = a.AccountTypeId,
