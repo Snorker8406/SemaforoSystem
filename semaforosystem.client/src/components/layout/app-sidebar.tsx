@@ -18,6 +18,7 @@ import {
   ScissorsIcon,
   SchoolIcon,
   SettingsIcon,
+  WalletIcon,
   SquareActivityIcon,
   TruckIcon,
   Undo2Icon,
@@ -100,6 +101,15 @@ const navigation: NavGroup[] = [
         ],
       },
       { label: 'Ponchados', href: '/embroideries', icon: ScissorsIcon },
+      {
+        label: 'Cuentas por Cobrar',
+        href: '#',
+        icon: WalletIcon,
+        children: [
+          { label: 'Administrar Cuentas', href: '/accounts' },
+          { label: 'Tipos de Cuenta', href: '/accounts/types' },
+        ],
+      },
       {
         label: 'Proceso Surtido',
         href: '#',

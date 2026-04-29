@@ -50,6 +50,9 @@ public partial class ProductVisualDefinition
     [InverseProperty("ProductVisualDefinition")]
     public virtual ICollection<ProductVisualDefinitionSchool> ProductVisualDefinitionSchools { get; set; } = new List<ProductVisualDefinitionSchool>();
 
+    [InverseProperty("ProductVisualDefinition")]
+    public virtual ICollection<SalesLine> SalesLines { get; set; } = new List<SalesLine>();
+
     [ForeignKey("ProductVisualDefinitionId")]
     [InverseProperty("ProductVisualDefinitions")]
     public virtual ICollection<ProductVariant> ProductVariants { get; set; } = new List<ProductVariant>();

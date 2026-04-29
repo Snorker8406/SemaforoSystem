@@ -238,6 +238,54 @@ Examples:
 
 ## 6) Migration rules from legacy `dbo.Cuentas_Cobrar`
 
+### 6.0 Legacy source databases (SEMAFORO + SEMAFOROX)
+The legacy data for accounts is split across **two SQL Server databases with identical schema**:
+- `SEMAFORO` — current / most recent data
+- `SEMAFOROX` — historical data
+
+Both databases contain the same legacy tables (`dbo.Cuentas_Cobrar`, `dbo.Abonos`, etc.). To obtain the full legacy dataset for migration, queries MUST read from both databases via `UNION ALL`.
+
+Important schema difference:
+- Column `dbo.Cuentas_Cobrar.Congelada` exists **only in `SEMAFORO`**, NOT in `SEMAFOROX`.
+- When building the UNION, project `CAST(NULL AS bit) AS Congelada` (or an equivalent constant) on the `SEMAFOROX` side to keep column lists aligned.
+
+Rules for Copilot-generated migration code / SQL:
+- Always read legacy accounts as the UNION of `[SEMAFORO].[dbo].[Cuentas_Cobrar]` and `[SEMAFOROX].[dbo].[Cuentas_Cobrar]`.
+- Always read legacy payments as the UNION of `[SEMAFORO].[dbo].[Abonos]` and `[SEMAFOROX].[dbo].[Abonos]`.
+- Prefer `UNION ALL` over `UNION` to avoid losing rows and to preserve performance (duplicates across databases are not expected; if they occur, they must be handled explicitly).
+- Add a `source_db` discriminator column (`'SEMAFORO'` / `'SEMAFOROX'`) to preserve provenance and to disambiguate potential `ID` collisions across databases.
+- Never assume the legacy `ID` is globally unique across both databases; when generating new PostgreSQL keys, keep `(source_db, legacy_id)` as the natural key for idempotent migration.
+
+Reference query template for `Cuentas_Cobrar` (aligned columns, `Congelada` projected as NULL from SEMAFOROX):
+
+```sql
+SELECT
+    'SEMAFORO' AS source_db,
+    [ID], [Cliente_ID], [Sucursal_Apertura_ID],
+    [Fecha_Apertura], [Fecha_Liquidacion], [Fecha_Vencimiento],
+    [Fecha_Cancelacion], [Fecha_Reactivacion],
+    [Prorroga], [Dias_Credito], [Credito], [Apartado],
+    [Incompleto], [Pedido_Especial], [Total], [Saldo],
+    [Empleado_Apertura_ID], [Observaciones], [Apartado_Codigo_Barras],
+    [Escuela_ID], [Concepto_ID], [Bordar],
+    [Congelada]
+FROM [SEMAFORO].[dbo].[Cuentas_Cobrar]
+UNION ALL
+SELECT
+    'SEMAFOROX' AS source_db,
+    [ID], [Cliente_ID], [Sucursal_Apertura_ID],
+    [Fecha_Apertura], [Fecha_Liquidacion], [Fecha_Vencimiento],
+    [Fecha_Cancelacion], [Fecha_Reactivacion],
+    [Prorroga], [Dias_Credito], [Credito], [Apartado],
+    [Incompleto], [Pedido_Especial], [Total], [Saldo],
+    [Empleado_Apertura_ID], [Observaciones], [Apartado_Codigo_Barras],
+    [Escuela_ID], [Concepto_ID], [Bordar],
+    CAST(NULL AS bit) AS [Congelada]
+FROM [SEMAFOROX].[dbo].[Cuentas_Cobrar];
+```
+
+The same UNION ALL pattern applies to `dbo.Abonos` (legacy payments) and to any other legacy table split between `SEMAFORO` and `SEMAFOROX`.
+
 ### 6.1 Legacy table interpretation
 The legacy table mixed:
 - account header

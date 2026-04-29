@@ -6,13 +6,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace SemaforoSystem.Server.Models;
 
-[Table("sales_types")]
-[Index("Code", Name = "uq_sales_types_code", IsUnique = true)]
-public partial class SalesType
+[Table("sale_statuses")]
+[Index("Code", Name = "uq_sale_statuses_code", IsUnique = true)]
+public partial class SaleStatus
 {
     [Key]
-    [Column("sale_type_id")]
-    public int SaleTypeId { get; set; }
+    [Column("sale_status_id")]
+    public int SaleStatusId { get; set; }
 
     [Column("code")]
     [StringLength(50)]
@@ -29,6 +29,6 @@ public partial class SalesType
     [Column("active")]
     public bool Active { get; set; }
 
-    [InverseProperty("SaleType")]
+    [InverseProperty("SaleStatus")]
     public virtual ICollection<Sale> Sales { get; set; } = new List<Sale>();
 }

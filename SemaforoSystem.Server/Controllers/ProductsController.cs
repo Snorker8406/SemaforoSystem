@@ -843,7 +843,7 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
                 .ThenInclude(d => d.InventoryBalances)
             .Include(p => p.ProductVisualDefinitions)
                 .ThenInclude(vd => vd.ProductVisualDefinitionSchools)
-            .Include(p => p.SalesDetails)
+            .Include(p => p.SalesLines)
             .Include(p => p.ProductCosts)
             .FirstOrDefaultAsync(p => p.ProductId == id, ct);
 
@@ -862,7 +862,7 @@ public class ProductsController(ApplicationDbContext db) : ControllerBase
         if (schoolCount > 0) conflicts.Add($"{schoolCount} escuela(s)");
         if (inventoryDefinitionCount > 0) conflicts.Add($"{inventoryDefinitionCount} definicion(es) de inventario");
         if (inventoryBalanceCount > 0) conflicts.Add($"{inventoryBalanceCount} registro(s) de balance de inventario");
-        if (product.SalesDetails.Count > 0) conflicts.Add($"{product.SalesDetails.Count} detalle(s) de venta");
+        if (product.SalesLines.Count > 0) conflicts.Add($"{product.SalesLines.Count} linea(s) de venta");
         if (product.ProductCosts.Count > 0) conflicts.Add($"{product.ProductCosts.Count} costo(s)");
 
         if (conflicts.Count > 0)

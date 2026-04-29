@@ -85,6 +85,8 @@ public partial class ApplicationDbContext : DbContext
 
     public virtual DbSet<LayawayAccount> LayawayAccounts { get; set; }
 
+    public virtual DbSet<PaymentMethod> PaymentMethods { get; set; }
+
     public virtual DbSet<PriceItemDefinitionEntry> PriceItemDefinitionEntries { get; set; }
 
     public virtual DbSet<PriceList> PriceLists { get; set; }
@@ -133,7 +135,13 @@ public partial class ApplicationDbContext : DbContext
 
     public virtual DbSet<Sale> Sales { get; set; }
 
-    public virtual DbSet<SalesDetail> SalesDetails { get; set; }
+    public virtual DbSet<SaleLineSerialItem> SaleLineSerialItems { get; set; }
+
+    public virtual DbSet<SalePayment> SalePayments { get; set; }
+
+    public virtual DbSet<SaleStatus> SaleStatuses { get; set; }
+
+    public virtual DbSet<SalesLine> SalesLines { get; set; }
 
     public virtual DbSet<SalesType> SalesTypes { get; set; }
 
@@ -559,6 +567,8 @@ public partial class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("inventory_transaction_lines_inventory_transaction_id_fkey");
 
+            entity.HasOne(d => d.SaleLine).WithMany(p => p.InventoryTransactionLines).HasConstraintName("fk_inventory_transaction_lines_sale_line");
+
             entity.HasOne(d => d.Site).WithMany(p => p.InventoryTransactionLineSites)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("inventory_transaction_lines_site_id_fkey");
@@ -598,6 +608,13 @@ public partial class ApplicationDbContext : DbContext
             entity.Property(e => e.AccountId).ValueGeneratedNever();
 
             entity.HasOne(d => d.Account).WithOne(p => p.LayawayAccount).HasConstraintName("layaway_accounts_account_id_fkey");
+        });
+
+        modelBuilder.Entity<PaymentMethod>(entity =>
+        {
+            entity.HasKey(e => e.PaymentMethodId).HasName("payment_methods_pkey");
+
+            entity.Property(e => e.Active).HasDefaultValue(true);
         });
 
         modelBuilder.Entity<PriceItemDefinitionEntry>(entity =>
@@ -994,41 +1011,84 @@ public partial class ApplicationDbContext : DbContext
         {
             entity.HasKey(e => e.SaleId).HasName("sales_pkey");
 
-            entity.Property(e => e.SaleDate).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.SaleDate).HasDefaultValueSql("now()");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()");
 
-            entity.HasOne(d => d.Client).WithMany(p => p.Sales).HasConstraintName("sales_client_id_fkey");
+            entity.HasOne(d => d.Account).WithMany(p => p.Sales).HasConstraintName("fk_sales_account");
+
+            entity.HasOne(d => d.Client).WithMany(p => p.Sales).HasConstraintName("fk_sales_client");
 
             entity.HasOne(d => d.Employee).WithMany(p => p.Sales)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("sales_employee_id_fkey");
+                .HasConstraintName("fk_sales_employee");
+
+            entity.HasOne(d => d.SaleStatus).WithMany(p => p.Sales)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_sales_sale_status");
 
             entity.HasOne(d => d.SaleType).WithMany(p => p.Sales)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("sales_sale_type_id_fkey");
+                .HasConstraintName("fk_sales_sale_type");
 
             entity.HasOne(d => d.Site).WithMany(p => p.Sales)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("sales_site_id_fkey");
+                .HasConstraintName("fk_sales_site");
         });
 
-        modelBuilder.Entity<SalesDetail>(entity =>
+        modelBuilder.Entity<SaleLineSerialItem>(entity =>
         {
-            entity.HasKey(e => e.SaleDetailId).HasName("sales_details_pkey");
+            entity.HasKey(e => new { e.SaleLineId, e.InventorySerialItemId }).HasName("pk_sale_line_serial_items");
 
-            entity.HasOne(d => d.Product).WithMany(p => p.SalesDetails)
+            entity.HasOne(d => d.InventorySerialItem).WithOne(p => p.SaleLineSerialItem)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("sales_details_product_id_fkey");
+                .HasConstraintName("fk_sale_line_serial_items_inventory_serial_item");
 
-            entity.HasOne(d => d.Sale).WithMany(p => p.SalesDetails)
+            entity.HasOne(d => d.SaleLine).WithMany(p => p.SaleLineSerialItems).HasConstraintName("fk_sale_line_serial_items_sale_line");
+        });
+
+        modelBuilder.Entity<SalePayment>(entity =>
+        {
+            entity.HasKey(e => e.SalePaymentId).HasName("sale_payments_pkey");
+
+            entity.Property(e => e.PaymentDate).HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.PaymentMethod).WithMany(p => p.SalePayments)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("sales_details_sale_id_fkey");
+                .HasConstraintName("fk_sale_payments_payment_method");
 
-            entity.HasOne(d => d.Size).WithMany(p => p.SalesDetails).HasConstraintName("sales_details_size_id_fkey");
+            entity.HasOne(d => d.Sale).WithMany(p => p.SalePayments).HasConstraintName("fk_sale_payments_sale");
+        });
+
+        modelBuilder.Entity<SaleStatus>(entity =>
+        {
+            entity.HasKey(e => e.SaleStatusId).HasName("sale_statuses_pkey");
+
+            entity.Property(e => e.Active).HasDefaultValue(true);
+        });
+
+        modelBuilder.Entity<SalesLine>(entity =>
+        {
+            entity.HasKey(e => e.SaleLineId).HasName("sales_lines_pkey");
+
+            entity.HasOne(d => d.InventoryItemDefinition).WithMany(p => p.SalesLines).HasConstraintName("fk_sales_lines_inventory_item_definition");
+
+            entity.HasOne(d => d.ProductComboVisualDefinition).WithMany(p => p.SalesLines).HasConstraintName("fk_sales_lines_product_combo_visual_definition");
+
+            entity.HasOne(d => d.Product).WithMany(p => p.SalesLines).HasConstraintName("fk_sales_lines_product");
+
+            entity.HasOne(d => d.ProductVisualDefinition).WithMany(p => p.SalesLines).HasConstraintName("fk_sales_lines_product_visual_definition");
+
+            entity.HasOne(d => d.Sale).WithMany(p => p.SalesLines).HasConstraintName("fk_sales_lines_sale");
+
+            entity.HasOne(d => d.Size).WithMany(p => p.SalesLines).HasConstraintName("fk_sales_lines_size");
         });
 
         modelBuilder.Entity<SalesType>(entity =>
         {
             entity.HasKey(e => e.SaleTypeId).HasName("sales_types_pkey");
+
+            entity.Property(e => e.Active).HasDefaultValue(true);
         });
 
         modelBuilder.Entity<School>(entity =>

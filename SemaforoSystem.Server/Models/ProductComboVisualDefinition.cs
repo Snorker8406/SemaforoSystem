@@ -69,4 +69,7 @@ public partial class ProductComboVisualDefinition
 
     [InverseProperty("ProductComboVisualDefinition")]
     public virtual ICollection<ProductComboVisualDefinitionSchool> ProductComboVisualDefinitionSchools { get; set; } = new List<ProductComboVisualDefinitionSchool>();
+
+    [InverseProperty("ProductComboVisualDefinition")]
+    public virtual ICollection<SalesLine> SalesLines { get; set; } = new List<SalesLine>();
 }

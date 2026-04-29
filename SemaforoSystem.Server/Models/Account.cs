@@ -96,6 +96,9 @@ public partial class Account
     [InverseProperty("Accounts")]
     public virtual Employee OpenedByEmployee { get; set; } = null!;
 
+    [InverseProperty("Account")]
+    public virtual ICollection<Sale> Sales { get; set; } = new List<Sale>();
+
     [ForeignKey("SiteId")]
     [InverseProperty("Accounts")]
     public virtual Site Site { get; set; } = null!;

@@ -47,6 +47,9 @@ public partial class InventorySerialItem
     [InverseProperty("InventorySerialItems")]
     public virtual InventoryItemDefinition InventoryItemDefinition { get; set; } = null!;
 
+    [InverseProperty("InventorySerialItem")]
+    public virtual SaleLineSerialItem? SaleLineSerialItem { get; set; }
+
     [ForeignKey("InventorySerialItemId")]
     [InverseProperty("InventorySerialItems")]
     public virtual ICollection<InventoryReservation> InventoryReservations { get; set; } = new List<InventoryReservation>();

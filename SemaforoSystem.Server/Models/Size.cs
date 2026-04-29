@@ -31,7 +31,7 @@ public partial class Size
     public virtual ICollection<InventoryItemDefinition> InventoryItemDefinitions { get; set; } = new List<InventoryItemDefinition>();
 
     [InverseProperty("Size")]
-    public virtual ICollection<SalesDetail> SalesDetails { get; set; } = new List<SalesDetail>();
+    public virtual ICollection<SalesLine> SalesLines { get; set; } = new List<SalesLine>();
 
     [ForeignKey("SizeSystemId")]
     [InverseProperty("Sizes")]

@@ -73,6 +73,9 @@ public partial class InventoryItemDefinition
     [InverseProperty("InventoryItemDefinitions")]
     public virtual ProductVisualDefinition? ProductVisualDefinition { get; set; }
 
+    [InverseProperty("InventoryItemDefinition")]
+    public virtual ICollection<SalesLine> SalesLines { get; set; } = new List<SalesLine>();
+
     [ForeignKey("SizeId")]
     [InverseProperty("InventoryItemDefinitions")]
     public virtual Size? Size { get; set; }

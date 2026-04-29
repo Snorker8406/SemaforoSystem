@@ -74,7 +74,7 @@ public partial class Product
     public virtual ICollection<ProductVisualDefinition> ProductVisualDefinitions { get; set; } = new List<ProductVisualDefinition>();
 
     [InverseProperty("Product")]
-    public virtual ICollection<SalesDetail> SalesDetails { get; set; } = new List<SalesDetail>();
+    public virtual ICollection<SalesLine> SalesLines { get; set; } = new List<SalesLine>();
 
     [ForeignKey("SizeSystemId")]
     [InverseProperty("Products")]

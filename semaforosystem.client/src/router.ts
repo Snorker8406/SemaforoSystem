@@ -11,6 +11,9 @@ import { Route as productsCombosRoute } from './routes/products.combos'
 import { Route as commonProductsRoute } from './routes/supply-process.common-products'
 import { Route as stockEntryRoute } from './routes/stock-entry'
 import { Route as embroideriesRoute } from './routes/embroideries'
+import { Route as accountsRoute } from './routes/accounts'
+import { Route as accountDetailRoute } from './routes/accounts.$accountId'
+import { Route as accountTypesRoute } from './routes/accounts.types'
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -24,6 +27,9 @@ const routeTree = rootRoute.addChildren([
   commonProductsRoute,
   stockEntryRoute,
   embroideriesRoute,
+  accountsRoute,
+  accountDetailRoute,
+  accountTypesRoute,
 ])
 
 export const router = createRouter({
