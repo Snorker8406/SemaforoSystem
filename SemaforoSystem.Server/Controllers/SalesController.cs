@@ -115,8 +115,20 @@ public class SalesController(ApplicationDbContext db) : ControllerBase
         if (query.SaleTypeId.HasValue) q = q.Where(s => s.SaleTypeId == query.SaleTypeId.Value);
         if (query.SaleStatusId.HasValue) q = q.Where(s => s.SaleStatusId == query.SaleStatusId.Value);
         if (query.AccountId.HasValue) q = q.Where(s => s.AccountId == query.AccountId.Value);
-        if (query.From.HasValue) q = q.Where(s => s.SaleDate >= query.From.Value);
-        if (query.To.HasValue) q = q.Where(s => s.SaleDate <= query.To.Value);
+        if (query.From.HasValue)
+        {
+            var from = ToUtc(query.From.Value);
+            q = q.Where(s => s.SaleDate >= from);
+        }
+        if (query.To.HasValue)
+        {
+            // If only a date was provided (time at midnight), include the entire day.
+            var to = query.To.Value;
+            if (to.TimeOfDay == TimeSpan.Zero)
+                to = to.AddDays(1).AddTicks(-1);
+            to = ToUtc(to);
+            q = q.Where(s => s.SaleDate <= to);
+        }
 
         if (!string.IsNullOrWhiteSpace(query.StatusCode))
         {
@@ -660,6 +672,13 @@ public class SalesController(ApplicationDbContext db) : ControllerBase
     // ═══════════════════════════════════════════════════════════════════
     //  HELPERS
     // ═══════════════════════════════════════════════════════════════════
+
+    private static DateTime ToUtc(DateTime value) => value.Kind switch
+    {
+        DateTimeKind.Utc => value,
+        DateTimeKind.Local => value.ToUniversalTime(),
+        _ => DateTime.SpecifyKind(value, DateTimeKind.Utc),
+    };
 
     private static SalesLine BuildLine(CreateSaleLineRequest req, int defaultLineNumber)
     {

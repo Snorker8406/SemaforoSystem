@@ -15,6 +15,7 @@ import {
   HashIcon,
   PackageIcon,
   PackageSearchIcon,
+  ReceiptIcon,
   ScissorsIcon,
   SchoolIcon,
   SettingsIcon,
@@ -108,6 +109,15 @@ const navigation: NavGroup[] = [
         children: [
           { label: 'Administrar Cuentas', href: '/accounts' },
           { label: 'Tipos de Cuenta', href: '/accounts/types' },
+        ],
+      },
+      {
+        label: 'Ventas',
+        href: '#',
+        icon: ReceiptIcon,
+        children: [
+          { label: 'Administrar Ventas', href: '/sales' },
+          { label: 'Tipos de Venta', href: '/sales/types' },
         ],
       },
       {

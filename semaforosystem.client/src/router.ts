@@ -14,6 +14,9 @@ import { Route as embroideriesRoute } from './routes/embroideries'
 import { Route as accountsRoute } from './routes/accounts'
 import { Route as accountDetailRoute } from './routes/accounts.$accountId'
 import { Route as accountTypesRoute } from './routes/accounts.types'
+import { Route as salesRoute } from './routes/sales'
+import { Route as saleDetailRoute } from './routes/sales.$saleId'
+import { Route as saleTypesRoute } from './routes/sales.types'
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -30,6 +33,9 @@ const routeTree = rootRoute.addChildren([
   accountsRoute,
   accountDetailRoute,
   accountTypesRoute,
+  salesRoute,
+  saleDetailRoute,
+  saleTypesRoute,
 ])
 
 export const router = createRouter({
