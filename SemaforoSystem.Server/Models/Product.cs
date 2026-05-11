@@ -71,7 +71,19 @@ public partial class Product
     public virtual ProductImageTarget? ProductImageTarget { get; set; }
 
     [InverseProperty("Product")]
+    public virtual ProductProvider? ProductProvider { get; set; }
+
+    [InverseProperty("Product")]
     public virtual ICollection<ProductVisualDefinition> ProductVisualDefinitions { get; set; } = new List<ProductVisualDefinition>();
+
+    [InverseProperty("Product")]
+    public virtual ICollection<ProviderPayableLine> ProviderPayableLines { get; set; } = new List<ProviderPayableLine>();
+
+    [InverseProperty("Product")]
+    public virtual ICollection<PurchaseOrderLine> PurchaseOrderLines { get; set; } = new List<PurchaseOrderLine>();
+
+    [InverseProperty("Product")]
+    public virtual ICollection<PurchaseReceiptLine> PurchaseReceiptLines { get; set; } = new List<PurchaseReceiptLine>();
 
     [InverseProperty("Product")]
     public virtual ICollection<SalesLine> SalesLines { get; set; } = new List<SalesLine>();

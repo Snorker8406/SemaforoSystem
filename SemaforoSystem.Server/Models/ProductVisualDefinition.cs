@@ -48,7 +48,19 @@ public partial class ProductVisualDefinition
     public virtual ICollection<ProductVisualDefinitionEmbroidery> ProductVisualDefinitionEmbroideries { get; set; } = new List<ProductVisualDefinitionEmbroidery>();
 
     [InverseProperty("ProductVisualDefinition")]
+    public virtual ProductVisualDefinitionProvider? ProductVisualDefinitionProvider { get; set; }
+
+    [InverseProperty("ProductVisualDefinition")]
     public virtual ICollection<ProductVisualDefinitionSchool> ProductVisualDefinitionSchools { get; set; } = new List<ProductVisualDefinitionSchool>();
+
+    [InverseProperty("ProductVisualDefinition")]
+    public virtual ICollection<ProviderPayableLine> ProviderPayableLines { get; set; } = new List<ProviderPayableLine>();
+
+    [InverseProperty("ProductVisualDefinition")]
+    public virtual ICollection<PurchaseOrderLine> PurchaseOrderLines { get; set; } = new List<PurchaseOrderLine>();
+
+    [InverseProperty("ProductVisualDefinition")]
+    public virtual ICollection<PurchaseReceiptLine> PurchaseReceiptLines { get; set; } = new List<PurchaseReceiptLine>();
 
     [InverseProperty("ProductVisualDefinition")]
     public virtual ICollection<SalesLine> SalesLines { get; set; } = new List<SalesLine>();

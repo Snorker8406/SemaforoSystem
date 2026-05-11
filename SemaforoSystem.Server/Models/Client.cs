@@ -99,8 +99,5 @@ public partial class Client
     public virtual Employee Employee { get; set; } = null!;
 
     [InverseProperty("Client")]
-    public virtual ICollection<File> Files { get; set; } = new List<File>();
-
-    [InverseProperty("Client")]
     public virtual ICollection<Sale> Sales { get; set; } = new List<Sale>();
 }

@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace SemaforoSystem.Server.Models;
 
 [Table("inventory_transaction_lines")]
+[Index("PurchaseReceiptLineId", Name = "ix_inventory_transaction_lines_purchase_receipt_line_id")]
 [Index("SaleLineId", Name = "ix_inventory_transaction_lines_sale_line_id")]
 public partial class InventoryTransactionLine
 {
@@ -43,6 +44,9 @@ public partial class InventoryTransactionLine
     [Column("target_site_id")]
     public int? TargetSiteId { get; set; }
 
+    [Column("purchase_receipt_line_id")]
+    public long? PurchaseReceiptLineId { get; set; }
+
     [ForeignKey("InventoryItemDefinitionId")]
     [InverseProperty("InventoryTransactionLines")]
     public virtual InventoryItemDefinition InventoryItemDefinition { get; set; } = null!;
@@ -50,6 +54,10 @@ public partial class InventoryTransactionLine
     [ForeignKey("InventoryTransactionId")]
     [InverseProperty("InventoryTransactionLines")]
     public virtual InventoryTransaction InventoryTransaction { get; set; } = null!;
+
+    [ForeignKey("PurchaseReceiptLineId")]
+    [InverseProperty("InventoryTransactionLines")]
+    public virtual PurchaseReceiptLine? PurchaseReceiptLine { get; set; }
 
     [ForeignKey("SaleLineId")]
     [InverseProperty("InventoryTransactionLines")]

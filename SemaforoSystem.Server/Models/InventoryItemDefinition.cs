@@ -74,6 +74,15 @@ public partial class InventoryItemDefinition
     public virtual ProductVisualDefinition? ProductVisualDefinition { get; set; }
 
     [InverseProperty("InventoryItemDefinition")]
+    public virtual ICollection<ProviderPayableLine> ProviderPayableLines { get; set; } = new List<ProviderPayableLine>();
+
+    [InverseProperty("InventoryItemDefinition")]
+    public virtual ICollection<PurchaseOrderLine> PurchaseOrderLines { get; set; } = new List<PurchaseOrderLine>();
+
+    [InverseProperty("InventoryItemDefinition")]
+    public virtual ICollection<PurchaseReceiptLine> PurchaseReceiptLines { get; set; } = new List<PurchaseReceiptLine>();
+
+    [InverseProperty("InventoryItemDefinition")]
     public virtual ICollection<SalesLine> SalesLines { get; set; } = new List<SalesLine>();
 
     [ForeignKey("SizeId")]

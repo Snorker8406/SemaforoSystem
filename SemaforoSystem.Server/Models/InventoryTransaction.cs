@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace SemaforoSystem.Server.Models;
 
 [Table("inventory_transactions")]
+[Index("PurchaseReceiptId", Name = "ix_inventory_transactions_purchase_receipt_id")]
 public partial class InventoryTransaction
 {
     [Key]
@@ -34,6 +35,13 @@ public partial class InventoryTransaction
     [Column("created_at")]
     public DateTime? CreatedAt { get; set; }
 
+    [Column("purchase_receipt_id")]
+    public long? PurchaseReceiptId { get; set; }
+
     [InverseProperty("InventoryTransaction")]
     public virtual ICollection<InventoryTransactionLine> InventoryTransactionLines { get; set; } = new List<InventoryTransactionLine>();
+
+    [ForeignKey("PurchaseReceiptId")]
+    [InverseProperty("InventoryTransactions")]
+    public virtual PurchaseReceipt? PurchaseReceipt { get; set; }
 }

@@ -1,0 +1,774 @@
+# Providers, Purchases, Receipts, Payables, Attachments & Inventory Guide
+
+> Canonical guide for GitHub Copilot and developers working on the supplier / purchasing module in the PostgreSQL destination database.
+>
+> This document explains how to understand and use:
+> - `providers`
+> - `provider_contacts`
+> - `provider_addresses`
+> - `provider_bank_accounts`
+> - `product_providers`
+> - `product_visual_definition_providers`
+> - `purchase_orders`
+> - `purchase_order_lines`
+> - `purchase_receipts`
+> - `purchase_receipt_lines`
+> - `provider_payables`
+> - `provider_payable_transactions`
+> - `purchase_order_expenses`
+> - `attachments`
+> - `attachment_links`
+> - integration with `inventory_*`
+
+This guide must be used for:
+- migration scripts
+- .NET API controllers and services
+- DTO design
+- EF Core mappings
+- frontend UI flows
+- receiving logic
+- payables logic
+- attachment/evidence handling
+
+---
+
+## 1) Core architectural decision
+
+The supplier flow must separate these concerns:
+
+1. Supplier master data
+2. Purchase order (what was requested)
+3. Purchase receipt (what was actually received)
+4. Inventory movement (what really entered stock)
+5. Payables ledger (what is owed / paid)
+6. Expenses related to the order
+7. Attachments and evidence
+
+These concerns must not be collapsed into one single table.
+
+---
+
+## 2) Main business concepts
+
+### 2.1 Provider directory
+The provider is a master/business entity.
+It may have:
+- multiple contacts
+- multiple addresses
+- multiple bank accounts
+- multiple payable documents
+- multiple purchase orders
+
+### 2.2 Purchase order
+A purchase order represents what was ordered, not what entered inventory.
+
+A purchase order:
+- may include products that already exist
+- may include new items not yet formalized in inventory
+- may be partially received
+- may be received differently than requested
+- may generate payables
+- may accumulate additional expenses
+
+### 2.3 Purchase receipt
+A purchase receipt represents what was physically received.
+This is the operational truth of receiving.
+
+Only approved/posted receipts should affect inventory.
+
+### 2.4 Payable
+A payable represents the financial obligation to the provider.
+This is distinct from the order and distinct from the physical receipt.
+
+### 2.5 Attachment
+Attachments are evidence and documents:
+- transfer receipts
+- invoice PDFs
+- shipping documents
+- goods photos
+- miscellaneous evidence
+
+---
+
+## 3) Provider directory tables
+
+### 3.1 `providers`
+This is the supplier master table.
+
+It should store:
+- legal identity
+- trade name
+- tax id
+- website
+- status
+- notes
+
+It should not store:
+- multiple contacts in one row
+- multiple bank accounts in one row
+- account balances as source of truth
+
+### 3.2 `provider_statuses`
+Catalog for provider status.
+
+Examples:
+- `ACTIVE`
+- `INACTIVE`
+- `BLOCKED`
+
+### 3.3 `provider_contacts`
+A provider may have multiple contacts:
+- purchasing
+- collections
+- sales rep
+- logistics
+- owner
+
+One provider can have many contact rows.
+
+### 3.4 `provider_addresses`
+A provider may have multiple addresses:
+- fiscal
+- warehouse
+- shipping
+- other
+
+### 3.5 `provider_bank_accounts`
+A provider may have multiple bank accounts.
+Do not store bank accounts as plain text on the provider row.
+
+---
+
+## 4) Product / visual definition relationship with providers
+
+### 4.1 `product_providers`
+This is the generic relation:
+- a product may be available from one or more providers
+
+Use this when supplier relation is broad and product-level.
+
+### 4.2 `product_visual_definition_providers`
+This is the specific relation:
+- a product visual definition may be supplied by one or more providers
+
+Use this when supplier mapping depends on:
+- color
+- school
+- embroidery-related configuration
+- provider SKU
+- provider-specific lead time
+- provider-specific cost
+- minimum order quantity
+
+### Important interpretation
+`product_visual_definition_providers` is more specific than `product_providers`.
+
+If both exist:
+- the visual-definition relation is the preferred commercial source when the item is visual-definition specific
+- the generic product relation is fallback / reference
+
+---
+
+## 5) Purchase orders
+
+### 5.1 `purchase_orders`
+Header of the order sent to the supplier.
+
+Represents:
+- supplier
+- origin site
+- employee who created the order
+- order date
+- expected delivery date
+- totals snapshot
+- status
+- notes
+- optional supplier reference / folio
+
+### 5.2 `purchase_order_statuses`
+Suggested statuses:
+- `DRAFT`
+- `ISSUED`
+- `PARTIALLY_RECEIVED`
+- `RECEIVED`
+- `CANCELED`
+- `CLOSED`
+
+### 5.3 `purchase_order_lines`
+Commercial/order lines of what was requested.
+
+Each line may be:
+- `PRODUCT`
+- `VISUAL_DEFINITION`
+- `INVENTORY_ITEM_DEFINITION`
+- `FREE_TEXT`
+- `SERVICE`
+
+### Important rule
+A purchase order line is request/planning data, not receipt truth and not inventory truth.
+
+### Why this matters
+A supplier may:
+- deliver less than ordered
+- deliver more than ordered
+- deliver something different
+- deliver in multiple batches
+
+So purchase order lines must not directly create inventory.
+
+---
+
+## 6) Receipts
+
+### 6.1 `purchase_receipts`
+Header of the actual receiving event.
+
+Represents:
+- what physically arrived
+- when it arrived
+- where it was received
+- who received it
+- optional relation to a purchase order
+- provider document number
+- receiving status
+
+### 6.2 `purchase_receipt_statuses`
+Suggested statuses:
+- `DRAFT`
+- `PENDING_REVIEW`
+- `APPROVED`
+- `POSTED_TO_STOCK`
+- `PARTIAL`
+- `REJECTED`
+
+### 6.3 `purchase_receipt_lines`
+Operational receiving lines.
+
+Fields represent:
+- what was received
+- what was accepted
+- what was rejected
+- what was posted to inventory
+
+### Important quantities
+- `quantity_received`
+- `quantity_accepted`
+- `quantity_rejected`
+- `quantity_posted_to_inventory`
+
+These values must not be assumed equal.
+
+### Key rule
+Only `quantity_posted_to_inventory` should eventually produce inventory ledger entries.
+
+---
+
+## 7) Inventory integration
+
+### 7.1 Inventory is still ledger-based
+The existing inventory model remains the operational truth:
+- `inventory_transactions`
+- `inventory_transaction_lines`
+- `inventory_serial_items`
+- `inventory_serial_item_moves`
+- `inventory_balances`
+
+### 7.2 Purchase order does not affect inventory
+Creating or editing a purchase order must not generate stock entries.
+
+### 7.3 Purchase receipt may affect inventory
+Only when a receipt is approved/posted:
+- create `inventory_transactions`
+- create `inventory_transaction_lines`
+- optionally create serialized rows / moves if required
+
+### 7.4 Traceability fields
+The schema includes optional traceability:
+- `inventory_transactions.purchase_receipt_id`
+- `inventory_transaction_lines.purchase_receipt_line_id`
+
+Use these fields so inventory entries can be traced back to the exact receipt.
+
+### 7.5 Partial and different receipts
+The design explicitly supports:
+- partial receipt
+- incomplete receipt
+- different-than-ordered receipt
+- multiple receipts for one order
+
+This is one of the main reasons orders and receipts must stay separate.
+
+---
+
+## 8) Payables
+
+### 8.1 `provider_payables`
+Header of the payable document.
+
+Represents the financial obligation to the provider.
+
+A payable may originate from:
+- a purchase order
+- a supplier invoice
+- an opening balance
+- a service
+- an expense
+
+### 8.2 `provider_payable_types`
+Examples:
+- `PURCHASE_ORDER`
+- `SUPPLIER_INVOICE`
+- `OPENING_BALANCE`
+- `EXPENSE`
+- `SERVICE`
+
+### 8.3 `provider_payable_statuses`
+Examples:
+- `OPEN`
+- `PARTIALLY_PAID`
+- `PAID`
+- `OVERDUE`
+- `CANCELED`
+- `CLOSED`
+
+### 8.4 `provider_payable_lines`
+Optional but strongly recommended detail table.
+Use it to preserve line-level snapshot of what the supplier is charging for.
+
+### 8.5 `provider_payable_transactions`
+This is the financial ledger of the payable.
+
+Use transaction types such as:
+- `CHARGE`
+- `PAYMENT`
+- `DISCOUNT`
+- `INTEREST`
+- `ADJUSTMENT`
+- `CANCELLATION`
+- `CREDIT_NOTE_APPLIED`
+
+### Canonical rule
+The payable balance must come from the ledger of `provider_payable_transactions`.
+
+Do not persist a business-truth `balance` column that drifts from the ledger.
+
+---
+
+## 9) Advances, installments, partial payments
+
+### 9.1 Advance / anticipo
+An advance is just a `PAYMENT` transaction in `provider_payable_transactions`.
+
+### 9.2 Partial payments
+Partial payments are also `PAYMENT` transactions.
+
+### 9.3 Balance
+Balance must be derived from the transaction ledger:
+- charges positive
+- payments negative
+- discounts negative
+- interest positive
+- adjustments as needed
+
+---
+
+## 10) Expenses related to the purchase order
+
+### 10.1 `purchase_expense_types`
+Examples:
+- `SHIPPING`
+- `UNEXPECTED`
+- `LOCAL_DELIVERY`
+- `CUSTOMS`
+- `PACKAGING`
+- `OTHER`
+
+### 10.2 `purchase_order_expenses`
+Use this table for costs related to the order such as:
+- shipping
+- courier
+- customs
+- unexpected costs
+- local delivery
+- any other expense related to the order
+
+### Why this table is necessary
+These costs:
+- may not belong in purchase order lines
+- may not come from the provider
+- may still affect total cost analysis
+- may still need attachments/evidence
+
+### Optional financial relation
+`purchase_order_expenses.provider_payable_id` can be used when an expense becomes part of a payable.
+
+---
+
+## 11) Attachments and evidence
+
+### 11.1 `attachments`
+Stores the file payload and metadata:
+- file name
+- content type
+- size
+- sha256
+- bytes
+- notes
+
+### 11.2 `attachment_links`
+Links an attachment to any business entity.
+
+Fields:
+- `entity_type`
+- `entity_id`
+- `attachment_role`
+
+### Examples of `entity_type`
+- `PROVIDER`
+- `PURCHASE_ORDER`
+- `PURCHASE_RECEIPT`
+- `PROVIDER_PAYABLE`
+- `PROVIDER_PAYABLE_TRANSACTION`
+- `PURCHASE_ORDER_EXPENSE`
+
+### Examples of `attachment_role`
+- `PAYMENT_PROOF`
+- `INVOICE`
+- `GOODS_PHOTO`
+- `RECEIPT_EVIDENCE`
+- `MISC`
+
+### 11.3 Why this replaces `files` / `archives`
+The old `files` + `archives` model was too rigid and entity-specific.
+The new design is generic and supports future growth.
+
+---
+
+## 12) Migration guidance
+
+### 12.1 General migration strategy
+When migrating supplier-related data:
+1. migrate provider master data
+2. migrate or infer provider contacts
+3. migrate addresses and bank accounts if available
+4. migrate opening balances or historical obligations into `provider_payables`
+5. migrate historical payments into `provider_payable_transactions`
+6. migrate any known purchase orders and receipts if legacy supports them
+7. migrate file/archive content into `attachments` and `attachment_links`
+
+### 12.2 If legacy does not clearly separate order / receipt / payable
+Prefer:
+- creating payables and transactions first
+- only create purchase orders / receipts when there is enough data fidelity
+
+### 12.3 Legacy file migration
+For old `files` / `archives`:
+- `archives.data` -> `attachments.file_bytes`
+- old metadata -> `attachments.*`
+- old entity linkage -> `attachment_links`
+
+---
+
+## 13) .NET API design rules
+
+### 13.1 Recommended controllers
+Suggested controllers:
+- `ProvidersController`
+- `ProviderContactsController`
+- `ProviderBankAccountsController`
+- `PurchaseOrdersController`
+- `PurchaseReceiptsController`
+- `ProviderPayablesController`
+- `ProviderPayableTransactionsController`
+- `PurchaseOrderExpensesController`
+- `AttachmentsController`
+
+### Optional catalog endpoints
+- provider statuses
+- purchase order statuses
+- receipt statuses
+- payable statuses
+- expense types
+- payment methods
+
+### 13.2 Purchase order endpoints
+Recommended endpoints:
+- `GET /api/purchase-orders`
+- `GET /api/purchase-orders/{id}`
+- `POST /api/purchase-orders`
+- `PUT /api/purchase-orders/{id}`
+- `PATCH /api/purchase-orders/{id}/status`
+
+### 13.3 Purchase receipt endpoints
+Recommended endpoints:
+- `GET /api/purchase-receipts`
+- `GET /api/purchase-receipts/{id}`
+- `POST /api/purchase-receipts`
+- `PUT /api/purchase-receipts/{id}`
+- `POST /api/purchase-receipts/{id}/approve`
+- `POST /api/purchase-receipts/{id}/post-to-stock`
+
+### 13.4 Payables endpoints
+Recommended endpoints:
+- `GET /api/provider-payables`
+- `GET /api/provider-payables/{id}`
+- `POST /api/provider-payables`
+- `GET /api/provider-payables/{id}/transactions`
+- `POST /api/provider-payables/{id}/transactions`
+
+### 13.5 Attachment endpoints
+Recommended endpoints:
+- `POST /api/attachments`
+- `GET /api/attachments/{id}`
+- `DELETE /api/attachments/{id}`
+- `POST /api/attachments/{id}/links`
+- `DELETE /api/attachment-links/{id}`
+
+---
+
+## 14) Service layer rules
+
+### 14.1 Controllers must stay thin
+Controllers should not contain core business logic.
+
+Recommended services:
+- `ProviderService`
+- `PurchaseOrderService`
+- `PurchaseReceiptService`
+- `PurchaseReceiptInventoryService`
+- `ProviderPayableService`
+- `ProviderPayableLedgerService`
+- `PurchaseOrderExpenseService`
+- `AttachmentService`
+
+### 14.2 Receipt posting flow
+When posting a receipt to stock:
+1. validate receipt status
+2. validate accepted/posted quantities
+3. resolve inventory item definitions if needed
+4. create inventory transaction header
+5. create inventory transaction lines
+6. create serial items/moves if applicable
+7. update receipt status
+
+### 14.3 Payable creation flow
+When creating a payable:
+1. validate provider
+2. validate type/status
+3. validate related order/receipt if supplied
+4. create payable
+5. create payable lines if available
+6. create initial `CHARGE` transaction if required
+
+### 14.4 Payment flow
+When posting an advance or payment:
+1. validate payable
+2. validate payment method
+3. insert `PAYMENT` transaction
+4. attach payment proof if provided
+5. recompute projected balance / status in application layer
+
+---
+
+## 15) UI design rules
+
+### 15.1 Provider screens
+The UI should support:
+- provider list
+- provider detail
+- contacts tab
+- addresses tab
+- bank accounts tab
+- linked payables
+- linked purchase orders
+
+### 15.2 Purchase order screen
+The purchase order UI should support:
+- provider selection
+- line entry
+- product / visual definition selection
+- free-text lines
+- totals
+- status tracking
+- expenses summary
+- attachments/evidence
+
+### 15.3 Receipt screen
+The receipt UI should support:
+- optional relation to purchase order
+- actual received quantities
+- accepted/rejected quantities
+- notes about differences
+- evidence photos/files
+- posting to stock only after review
+
+### 15.4 Payables screen
+The payable UI should support:
+- header summary
+- transaction ledger
+- current balance
+- payment capture
+- due date and overdue indicator
+- attached payment proofs / invoices
+
+### 15.5 Expenses screen
+The order expense UI should support:
+- expense type
+- amount
+- date
+- notes
+- whether it is payable to provider
+- evidence attachments
+
+---
+
+## 16) DTO guidance
+
+### 16.1 Provider DTOs
+Should support:
+- master provider fields
+- nested contacts
+- nested bank accounts
+- status info
+
+### 16.2 Purchase order DTOs
+Should support:
+- header
+- line array
+- totals
+- status
+- attachments summary
+
+### 16.3 Purchase receipt DTOs
+Should support:
+- header
+- line array
+- order linkage
+- received/accepted/rejected/posted values
+- attachments summary
+
+### 16.4 Payable DTOs
+Should support:
+- header
+- lines
+- transactions
+- current calculated balance
+- linked order/receipt summary
+
+### 16.5 Attachment DTOs
+Should support:
+- file metadata
+- entity linkage
+- role
+- upload/download flow
+
+---
+
+## 17) EF Core modeling rules
+
+### 17.1 Main entities
+Copilot should generate entities roughly like:
+- `Provider`
+- `ProviderStatus`
+- `ProviderContact`
+- `ProviderAddress`
+- `ProviderBankAccount`
+- `ProductProvider`
+- `ProductVisualDefinitionProvider`
+- `PurchaseOrder`
+- `PurchaseOrderStatus`
+- `PurchaseOrderLine`
+- `PurchaseReceipt`
+- `PurchaseReceiptStatus`
+- `PurchaseReceiptLine`
+- `ProviderPayable`
+- `ProviderPayableType`
+- `ProviderPayableStatus`
+- `ProviderPayableLine`
+- `ProviderPayableTransaction`
+- `ProviderPaymentMethod`
+- `PurchaseExpenseType`
+- `PurchaseOrderExpense`
+- `Attachment`
+- `AttachmentLink`
+
+### 17.2 Foreign key type consistency
+Copilot must always align FK CLR types exactly with principal key types.
+
+Examples in current schema:
+- `provider_id` -> `int`
+- `product_visual_definition_id` -> `long`
+- `purchase_order_id` -> `long`
+- `purchase_receipt_id` -> `long`
+- `inventory_item_definition_id` -> `int`
+
+Never generate `int?` if the principal key is `long`.
+Never generate `long?` if the principal key is `int`.
+
+---
+
+## 18) Validation rules
+
+### 18.1 Purchase order validations
+Validate:
+- provider exists
+- site exists
+- employee exists
+- status exists
+- quantities > 0
+- costs/totals >= 0
+
+### 18.2 Receipt validations
+Validate:
+- provider exists
+- site exists
+- receipt status exists
+- quantity logic:
+  - accepted + rejected <= received
+  - posted_to_inventory <= accepted
+
+### 18.3 Payable validations
+Validate:
+- provider exists
+- payable type exists
+- payable status exists
+- totals >= 0
+
+### 18.4 Attachment validations
+Validate:
+- content type
+- maximum file size
+- allowed file categories according to business rules
+- valid `entity_type`
+- valid `attachment_role`
+
+---
+
+## 19) Things Copilot must NOT do
+
+- Do not treat purchase orders as inventory truth
+- Do not post to inventory directly from order lines
+- Do not collapse payables into one balance column without a transaction ledger
+- Do not store multiple contacts or bank accounts directly in `providers`
+- Do not reuse old `files` / `archives` assumptions
+- Do not ignore partial receipt scenarios
+- Do not assume supplier and receipt quantities always match
+- Do not generate mismatched FK/PK CLR types
+
+---
+
+## 20) Canonical interpretation
+
+The supplier/purchasing module must be treated as:
+- normalized
+- operationally separated
+- ledger-compatible
+- inventory-safe
+- attachment-friendly
+- capable of partial and inconsistent receipts
+- capable of advances, partial payments, balances, and expenses
+- compatible with product and visual-definition supplier relations
+
+This is the required interpretation for all generated code related to providers, purchasing, receipts, payables, expenses, and attachments.
+
+---

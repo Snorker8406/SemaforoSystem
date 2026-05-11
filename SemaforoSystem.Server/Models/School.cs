@@ -61,9 +61,6 @@ public partial class School
     public virtual ICollection<Embroidery> Embroideries { get; set; } = new List<Embroidery>();
 
     [InverseProperty("School")]
-    public virtual ICollection<File> Files { get; set; } = new List<File>();
-
-    [InverseProperty("School")]
     public virtual ICollection<ProductComboVisualDefinitionSchool> ProductComboVisualDefinitionSchools { get; set; } = new List<ProductComboVisualDefinitionSchool>();
 
     [InverseProperty("School")]

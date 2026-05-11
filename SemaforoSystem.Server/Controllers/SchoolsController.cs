@@ -241,15 +241,21 @@ public class SchoolsController(ApplicationDbContext db) : ControllerBase
     {
         var school = await db.Schools
             .Include(s => s.Embroideries)
-            .Include(s => s.Files)
             .Include(s => s.ProductVisualDefinitionSchools)
             .FirstOrDefaultAsync(s => s.SchoolId == id, ct);
 
         if (school is null)
             return NotFound(new { message = $"School with ID {id} was not found." });
 
+        // Count attachments linked to this school via the generic attachment_links table.
+        // Per the providers/attachments guide, the old `files` collection has been replaced
+        // by the generic Attachment / AttachmentLink model keyed by (entity_type, entity_id).
+        var attachmentsCount = await db.AttachmentLinks
+            .AsNoTracking()
+            .CountAsync(l => l.EntityType == "SCHOOL" && l.EntityId == school.SchoolId, ct);
+
         // Guard against deleting schools with related data
-        if (school.Embroideries.Count > 0 || school.Files.Count > 0 || school.ProductVisualDefinitionSchools.Count > 0)
+        if (school.Embroideries.Count > 0 || attachmentsCount > 0 || school.ProductVisualDefinitionSchools.Count > 0)
         {
             return Conflict(new
             {
@@ -257,7 +263,7 @@ public class SchoolsController(ApplicationDbContext db) : ControllerBase
                 relatedCounts = new
                 {
                     embroideries = school.Embroideries.Count,
-                    files = school.Files.Count,
+                    attachments = attachmentsCount,
                     products = school.ProductVisualDefinitionSchools.Count,
                 },
             });

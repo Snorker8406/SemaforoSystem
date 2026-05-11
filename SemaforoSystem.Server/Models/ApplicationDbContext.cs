@@ -29,8 +29,6 @@ public partial class ApplicationDbContext : DbContext
 
     public virtual DbSet<AccountType> AccountTypes { get; set; }
 
-    public virtual DbSet<Archive> Archives { get; set; }
-
     public virtual DbSet<AspNetRole> AspNetRoles { get; set; }
 
     public virtual DbSet<AspNetRoleClaim> AspNetRoleClaims { get; set; }
@@ -42,6 +40,10 @@ public partial class ApplicationDbContext : DbContext
     public virtual DbSet<AspNetUserLogin> AspNetUserLogins { get; set; }
 
     public virtual DbSet<AspNetUserToken> AspNetUserTokens { get; set; }
+
+    public virtual DbSet<Attachment> Attachments { get; set; }
+
+    public virtual DbSet<AttachmentLink> AttachmentLinks { get; set; }
 
     public virtual DbSet<Attendance> Attendances { get; set; }
 
@@ -68,8 +70,6 @@ public partial class ApplicationDbContext : DbContext
     public virtual DbSet<EmployeeSchedule> EmployeeSchedules { get; set; }
 
     public virtual DbSet<EmploymentStatus> EmploymentStatuses { get; set; }
-
-    public virtual DbSet<File> Files { get; set; }
 
     public virtual DbSet<InventoryBalance> InventoryBalances { get; set; }
 
@@ -125,13 +125,47 @@ public partial class ApplicationDbContext : DbContext
 
     public virtual DbSet<ProductVisualDefinitionEmbroidery> ProductVisualDefinitionEmbroideries { get; set; }
 
+    public virtual DbSet<ProductVisualDefinitionProvider> ProductVisualDefinitionProviders { get; set; }
+
     public virtual DbSet<ProductVisualDefinitionSchool> ProductVisualDefinitionSchools { get; set; }
 
     public virtual DbSet<Provider> Providers { get; set; }
 
-    public virtual DbSet<ProviderAccount> ProviderAccounts { get; set; }
+    public virtual DbSet<ProviderAddress> ProviderAddresses { get; set; }
 
-    public virtual DbSet<ProviderAccountPayment> ProviderAccountPayments { get; set; }
+    public virtual DbSet<ProviderBankAccount> ProviderBankAccounts { get; set; }
+
+    public virtual DbSet<ProviderContact> ProviderContacts { get; set; }
+
+    public virtual DbSet<ProviderPayable> ProviderPayables { get; set; }
+
+    public virtual DbSet<ProviderPayableLine> ProviderPayableLines { get; set; }
+
+    public virtual DbSet<ProviderPayableStatus> ProviderPayableStatuses { get; set; }
+
+    public virtual DbSet<ProviderPayableTransaction> ProviderPayableTransactions { get; set; }
+
+    public virtual DbSet<ProviderPayableType> ProviderPayableTypes { get; set; }
+
+    public virtual DbSet<ProviderPaymentMethod> ProviderPaymentMethods { get; set; }
+
+    public virtual DbSet<ProviderStatus> ProviderStatuses { get; set; }
+
+    public virtual DbSet<PurchaseExpenseType> PurchaseExpenseTypes { get; set; }
+
+    public virtual DbSet<PurchaseOrder> PurchaseOrders { get; set; }
+
+    public virtual DbSet<PurchaseOrderExpense> PurchaseOrderExpenses { get; set; }
+
+    public virtual DbSet<PurchaseOrderLine> PurchaseOrderLines { get; set; }
+
+    public virtual DbSet<PurchaseOrderStatus> PurchaseOrderStatuses { get; set; }
+
+    public virtual DbSet<PurchaseReceipt> PurchaseReceipts { get; set; }
+
+    public virtual DbSet<PurchaseReceiptLine> PurchaseReceiptLines { get; set; }
+
+    public virtual DbSet<PurchaseReceiptStatus> PurchaseReceiptStatuses { get; set; }
 
     public virtual DbSet<Sale> Sales { get; set; }
 
@@ -274,11 +308,6 @@ public partial class ApplicationDbContext : DbContext
             entity.Property(e => e.IsActive).HasDefaultValue(true);
         });
 
-        modelBuilder.Entity<Archive>(entity =>
-        {
-            entity.HasKey(e => e.ArchiveId).HasName("archives_pkey");
-        });
-
         modelBuilder.Entity<AspNetUser>(entity =>
         {
             entity.HasMany(d => d.Roles).WithMany(p => p.Users)
@@ -292,6 +321,27 @@ public partial class ApplicationDbContext : DbContext
                         j.ToTable("AspNetUserRoles");
                         j.HasIndex(new[] { "RoleId" }, "IX_AspNetUserRoles_RoleId");
                     });
+        });
+
+        modelBuilder.Entity<Attachment>(entity =>
+        {
+            entity.HasKey(e => e.AttachmentId).HasName("attachments_pkey");
+
+            entity.HasIndex(e => e.Sha256, "ux_attachments_sha256")
+                .IsUnique()
+                .HasFilter("(sha256 IS NOT NULL)");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.Sha256).IsFixedLength();
+        });
+
+        modelBuilder.Entity<AttachmentLink>(entity =>
+        {
+            entity.HasKey(e => e.AttachmentLinkId).HasName("attachment_links_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.Attachment).WithMany(p => p.AttachmentLinks).HasConstraintName("fk_attachment_links_attachment");
         });
 
         modelBuilder.Entity<Attendance>(entity =>
@@ -417,33 +467,6 @@ public partial class ApplicationDbContext : DbContext
             entity.Property(e => e.IsActive).HasDefaultValue(true);
         });
 
-        modelBuilder.Entity<File>(entity =>
-        {
-            entity.HasKey(e => e.FileId).HasName("files_pkey");
-
-            entity.Property(e => e.CreateDate).HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-            entity.HasOne(d => d.Account).WithMany(p => p.Files)
-                .OnDelete(DeleteBehavior.SetNull)
-                .HasConstraintName("files_account_id_fkey");
-
-            entity.HasOne(d => d.Archive).WithMany(p => p.Files)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("files_archive_id_fkey");
-
-            entity.HasOne(d => d.Client).WithMany(p => p.Files).HasConstraintName("files_client_id_fkey");
-
-            entity.HasOne(d => d.Employee).WithMany(p => p.Files).HasConstraintName("files_employee_id_fkey");
-
-            entity.HasOne(d => d.ProviderAccount).WithMany(p => p.Files).HasConstraintName("files_provider_account_id_fkey");
-
-            entity.HasOne(d => d.ProviderAccountPayment).WithMany(p => p.Files).HasConstraintName("files_provider_account_payment_id_fkey");
-
-            entity.HasOne(d => d.Provider).WithMany(p => p.Files).HasConstraintName("files_provider_id_fkey");
-
-            entity.HasOne(d => d.School).WithMany(p => p.Files).HasConstraintName("files_school_id_fkey");
-        });
-
         modelBuilder.Entity<InventoryBalance>(entity =>
         {
             entity.HasKey(e => new { e.SiteId, e.InventoryItemDefinitionId }).HasName("inventory_balances_pkey");
@@ -553,6 +576,10 @@ public partial class ApplicationDbContext : DbContext
 
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
             entity.Property(e => e.TransactionDate).HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.PurchaseReceipt).WithMany(p => p.InventoryTransactions)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_inventory_transactions_purchase_receipt");
         });
 
         modelBuilder.Entity<InventoryTransactionLine>(entity =>
@@ -566,6 +593,10 @@ public partial class ApplicationDbContext : DbContext
             entity.HasOne(d => d.InventoryTransaction).WithMany(p => p.InventoryTransactionLines)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("inventory_transaction_lines_inventory_transaction_id_fkey");
+
+            entity.HasOne(d => d.PurchaseReceiptLine).WithMany(p => p.InventoryTransactionLines)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_inventory_transaction_lines_purchase_receipt_line");
 
             entity.HasOne(d => d.SaleLine).WithMany(p => p.InventoryTransactionLines).HasConstraintName("fk_inventory_transaction_lines_sale_line");
 
@@ -892,13 +923,15 @@ public partial class ApplicationDbContext : DbContext
 
         modelBuilder.Entity<ProductProvider>(entity =>
         {
-            entity.HasOne(d => d.Product).WithMany()
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("product_providers_product_id_fkey");
+            entity.HasKey(e => new { e.ProductId, e.ProviderId }).HasName("pk_product_providers");
 
-            entity.HasOne(d => d.Provider).WithMany()
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("product_providers_provider_id_fkey");
+            entity.HasIndex(e => e.ProductId, "ux_product_providers_primary")
+                .IsUnique()
+                .HasFilter("(is_primary = true)");
+
+            entity.HasOne(d => d.Product).WithOne(p => p.ProductProvider).HasConstraintName("fk_product_providers_product");
+
+            entity.HasOne(d => d.Provider).WithMany(p => p.ProductProviders).HasConstraintName("fk_product_providers_provider");
         });
 
         modelBuilder.Entity<ProductVariant>(entity =>
@@ -960,6 +993,21 @@ public partial class ApplicationDbContext : DbContext
             entity.HasOne(d => d.ProductVisualDefinition).WithMany(p => p.ProductVisualDefinitionEmbroideries).HasConstraintName("pvde_visual_def_fkey");
         });
 
+        modelBuilder.Entity<ProductVisualDefinitionProvider>(entity =>
+        {
+            entity.HasKey(e => new { e.ProductVisualDefinitionId, e.ProviderId }).HasName("pk_product_visual_definition_providers");
+
+            entity.HasIndex(e => e.ProductVisualDefinitionId, "ux_pvdp_primary")
+                .IsUnique()
+                .HasFilter("(is_primary = true)");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.ProductVisualDefinition).WithOne(p => p.ProductVisualDefinitionProvider).HasConstraintName("fk_pvdp_visual_definition");
+
+            entity.HasOne(d => d.Provider).WithMany(p => p.ProductVisualDefinitionProviders).HasConstraintName("fk_pvdp_provider");
+        });
+
         modelBuilder.Entity<ProductVisualDefinitionSchool>(entity =>
         {
             entity.HasKey(e => new { e.ProductVisualDefinitionId, e.SchoolId }).HasName("product_visual_definition_schools_pkey");
@@ -976,35 +1024,305 @@ public partial class ApplicationDbContext : DbContext
         {
             entity.HasKey(e => e.ProviderId).HasName("providers_pkey");
 
-            entity.Property(e => e.CreateDate).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.ProviderStatus).WithMany(p => p.Providers)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_providers_status");
         });
 
-        modelBuilder.Entity<ProviderAccount>(entity =>
+        modelBuilder.Entity<ProviderAddress>(entity =>
         {
-            entity.HasKey(e => e.ProviderAccountId).HasName("provider_account_pkey");
+            entity.HasKey(e => e.ProviderAddressId).HasName("provider_addresses_pkey");
 
-            entity.Property(e => e.OpeningDate).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => e.ProviderId, "ux_provider_addresses_primary")
+                .IsUnique()
+                .HasFilter("(is_primary = true)");
 
-            entity.HasOne(d => d.Employee).WithMany(p => p.ProviderAccounts)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("provider_account_employee_id_fkey");
+            entity.Property(e => e.Country).HasDefaultValueSql("'MEXICO'::character varying");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
 
-            entity.HasOne(d => d.Provider).WithMany(p => p.ProviderAccounts).HasConstraintName("provider_account_provider_id_fkey");
+            entity.HasOne(d => d.Provider).WithOne(p => p.ProviderAddress).HasConstraintName("fk_provider_addresses_provider");
         });
 
-        modelBuilder.Entity<ProviderAccountPayment>(entity =>
+        modelBuilder.Entity<ProviderBankAccount>(entity =>
         {
-            entity.HasKey(e => e.ProviderAccountPaymentId).HasName("provider_account_payments_pkey");
+            entity.HasKey(e => e.ProviderBankAccountId).HasName("provider_bank_accounts_pkey");
 
-            entity.Property(e => e.PaymentDate).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => e.ProviderId, "ux_provider_bank_accounts_primary")
+                .IsUnique()
+                .HasFilter("(is_primary = true)");
 
-            entity.HasOne(d => d.Employee).WithMany(p => p.ProviderAccountPayments)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("provider_account_payments_employee_id_fkey");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.CurrencyCode).HasDefaultValueSql("'MXN'::character varying");
 
-            entity.HasOne(d => d.ProviderAccount).WithMany(p => p.ProviderAccountPayments)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("provider_account_payments_provider_account_id_fkey");
+            entity.HasOne(d => d.Provider).WithOne(p => p.ProviderBankAccount).HasConstraintName("fk_provider_bank_accounts_provider");
+        });
+
+        modelBuilder.Entity<ProviderContact>(entity =>
+        {
+            entity.HasKey(e => e.ProviderContactId).HasName("provider_contacts_pkey");
+
+            entity.HasIndex(e => e.ProviderId, "ux_provider_contacts_primary")
+                .IsUnique()
+                .HasFilter("(is_primary = true)");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.Provider).WithOne(p => p.ProviderContact).HasConstraintName("fk_provider_contacts_provider");
+        });
+
+        modelBuilder.Entity<ProviderPayable>(entity =>
+        {
+            entity.HasKey(e => e.ProviderPayableId).HasName("provider_payables_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.CurrencyCode).HasDefaultValueSql("'MXN'::character varying");
+            entity.Property(e => e.DocumentDate).HasDefaultValueSql("now()");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.OpenedByEmployee).WithMany(p => p.ProviderPayables)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_provider_payables_employee");
+
+            entity.HasOne(d => d.Provider).WithMany(p => p.ProviderPayables)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_provider_payables_provider");
+
+            entity.HasOne(d => d.ProviderPayableStatus).WithMany(p => p.ProviderPayables)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_provider_payables_status");
+
+            entity.HasOne(d => d.ProviderPayableType).WithMany(p => p.ProviderPayables)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_provider_payables_type");
+
+            entity.HasOne(d => d.PurchaseOrder).WithMany(p => p.ProviderPayables)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_provider_payables_purchase_order");
+
+            entity.HasOne(d => d.PurchaseReceipt).WithMany(p => p.ProviderPayables)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_provider_payables_purchase_receipt");
+
+            entity.HasOne(d => d.Site).WithMany(p => p.ProviderPayables)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_provider_payables_site");
+        });
+
+        modelBuilder.Entity<ProviderPayableLine>(entity =>
+        {
+            entity.HasKey(e => e.ProviderPayableLineId).HasName("provider_payable_lines_pkey");
+
+            entity.HasOne(d => d.InventoryItemDefinition).WithMany(p => p.ProviderPayableLines)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_provider_payable_lines_inventory_item_definition");
+
+            entity.HasOne(d => d.Product).WithMany(p => p.ProviderPayableLines)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_provider_payable_lines_product");
+
+            entity.HasOne(d => d.ProductVisualDefinition).WithMany(p => p.ProviderPayableLines)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_provider_payable_lines_visual_definition");
+
+            entity.HasOne(d => d.ProviderPayable).WithMany(p => p.ProviderPayableLines).HasConstraintName("fk_provider_payable_lines_payable");
+
+            entity.HasOne(d => d.PurchaseOrderLine).WithMany(p => p.ProviderPayableLines)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_provider_payable_lines_order_line");
+
+            entity.HasOne(d => d.PurchaseReceiptLine).WithMany(p => p.ProviderPayableLines)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_provider_payable_lines_receipt_line");
+        });
+
+        modelBuilder.Entity<ProviderPayableStatus>(entity =>
+        {
+            entity.HasKey(e => e.ProviderPayableStatusId).HasName("provider_payable_statuses_pkey");
+
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+        });
+
+        modelBuilder.Entity<ProviderPayableTransaction>(entity =>
+        {
+            entity.HasKey(e => e.ProviderPayableTransactionId).HasName("provider_payable_transactions_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.TransactionDate).HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.CreatedByEmployee).WithMany(p => p.ProviderPayableTransactions)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_provider_payable_transactions_employee");
+
+            entity.HasOne(d => d.ProviderPayable).WithMany(p => p.ProviderPayableTransactions).HasConstraintName("fk_provider_payable_transactions_payable");
+
+            entity.HasOne(d => d.ProviderPaymentMethod).WithMany(p => p.ProviderPayableTransactions)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_provider_payable_transactions_method");
+        });
+
+        modelBuilder.Entity<ProviderPayableType>(entity =>
+        {
+            entity.HasKey(e => e.ProviderPayableTypeId).HasName("provider_payable_types_pkey");
+
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+        });
+
+        modelBuilder.Entity<ProviderPaymentMethod>(entity =>
+        {
+            entity.HasKey(e => e.ProviderPaymentMethodId).HasName("provider_payment_methods_pkey");
+
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+        });
+
+        modelBuilder.Entity<ProviderStatus>(entity =>
+        {
+            entity.HasKey(e => e.ProviderStatusId).HasName("provider_statuses_pkey");
+
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+        });
+
+        modelBuilder.Entity<PurchaseExpenseType>(entity =>
+        {
+            entity.HasKey(e => e.PurchaseExpenseTypeId).HasName("purchase_expense_types_pkey");
+
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+        });
+
+        modelBuilder.Entity<PurchaseOrder>(entity =>
+        {
+            entity.HasKey(e => e.PurchaseOrderId).HasName("purchase_orders_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.CurrencyCode).HasDefaultValueSql("'MXN'::character varying");
+            entity.Property(e => e.OrderDate).HasDefaultValueSql("now()");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.CreatedByEmployee).WithMany(p => p.PurchaseOrders)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_purchase_orders_employee");
+
+            entity.HasOne(d => d.Provider).WithMany(p => p.PurchaseOrders)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_purchase_orders_provider");
+
+            entity.HasOne(d => d.PurchaseOrderStatus).WithMany(p => p.PurchaseOrders)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_purchase_orders_status");
+
+            entity.HasOne(d => d.Site).WithMany(p => p.PurchaseOrders)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_purchase_orders_site");
+        });
+
+        modelBuilder.Entity<PurchaseOrderExpense>(entity =>
+        {
+            entity.HasKey(e => e.PurchaseOrderExpenseId).HasName("purchase_order_expenses_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.CurrencyCode).HasDefaultValueSql("'MXN'::character varying");
+            entity.Property(e => e.ExpenseDate).HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.ProviderPayable).WithMany(p => p.PurchaseOrderExpenses)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_purchase_order_expenses_payable");
+
+            entity.HasOne(d => d.PurchaseExpenseType).WithMany(p => p.PurchaseOrderExpenses)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_purchase_order_expenses_type");
+
+            entity.HasOne(d => d.PurchaseOrder).WithMany(p => p.PurchaseOrderExpenses).HasConstraintName("fk_purchase_order_expenses_order");
+        });
+
+        modelBuilder.Entity<PurchaseOrderLine>(entity =>
+        {
+            entity.HasKey(e => e.PurchaseOrderLineId).HasName("purchase_order_lines_pkey");
+
+            entity.HasOne(d => d.InventoryItemDefinition).WithMany(p => p.PurchaseOrderLines)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_purchase_order_lines_inventory_item_definition");
+
+            entity.HasOne(d => d.Product).WithMany(p => p.PurchaseOrderLines)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_purchase_order_lines_product");
+
+            entity.HasOne(d => d.ProductVisualDefinition).WithMany(p => p.PurchaseOrderLines)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_purchase_order_lines_visual_definition");
+
+            entity.HasOne(d => d.Provider).WithMany(p => p.PurchaseOrderLines)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_purchase_order_lines_provider");
+
+            entity.HasOne(d => d.PurchaseOrder).WithMany(p => p.PurchaseOrderLines).HasConstraintName("fk_purchase_order_lines_order");
+        });
+
+        modelBuilder.Entity<PurchaseOrderStatus>(entity =>
+        {
+            entity.HasKey(e => e.PurchaseOrderStatusId).HasName("purchase_order_statuses_pkey");
+
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+        });
+
+        modelBuilder.Entity<PurchaseReceipt>(entity =>
+        {
+            entity.HasKey(e => e.PurchaseReceiptId).HasName("purchase_receipts_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.ReceiptDate).HasDefaultValueSql("now()");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.Provider).WithMany(p => p.PurchaseReceipts)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_purchase_receipts_provider");
+
+            entity.HasOne(d => d.PurchaseOrder).WithMany(p => p.PurchaseReceipts)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_purchase_receipts_order");
+
+            entity.HasOne(d => d.PurchaseReceiptStatus).WithMany(p => p.PurchaseReceipts)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_purchase_receipts_status");
+
+            entity.HasOne(d => d.ReceivedByEmployee).WithMany(p => p.PurchaseReceipts)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_purchase_receipts_employee");
+
+            entity.HasOne(d => d.Site).WithMany(p => p.PurchaseReceipts)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_purchase_receipts_site");
+        });
+
+        modelBuilder.Entity<PurchaseReceiptLine>(entity =>
+        {
+            entity.HasKey(e => e.PurchaseReceiptLineId).HasName("purchase_receipt_lines_pkey");
+
+            entity.HasOne(d => d.InventoryItemDefinition).WithMany(p => p.PurchaseReceiptLines)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_purchase_receipt_lines_inventory_item_definition");
+
+            entity.HasOne(d => d.Product).WithMany(p => p.PurchaseReceiptLines)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_purchase_receipt_lines_product");
+
+            entity.HasOne(d => d.ProductVisualDefinition).WithMany(p => p.PurchaseReceiptLines)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_purchase_receipt_lines_visual_definition");
+
+            entity.HasOne(d => d.PurchaseOrderLine).WithMany(p => p.PurchaseReceiptLines)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_purchase_receipt_lines_order_line");
+
+            entity.HasOne(d => d.PurchaseReceipt).WithMany(p => p.PurchaseReceiptLines).HasConstraintName("fk_purchase_receipt_lines_receipt");
+        });
+
+        modelBuilder.Entity<PurchaseReceiptStatus>(entity =>
+        {
+            entity.HasKey(e => e.PurchaseReceiptStatusId).HasName("purchase_receipt_statuses_pkey");
+
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
         });
 
         modelBuilder.Entity<Sale>(entity =>

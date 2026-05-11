@@ -114,14 +114,17 @@ public partial class Employee
     [InverseProperty("Employees")]
     public virtual EmploymentStatus? EmploymentStatus { get; set; }
 
-    [InverseProperty("Employee")]
-    public virtual ICollection<File> Files { get; set; } = new List<File>();
+    [InverseProperty("CreatedByEmployee")]
+    public virtual ICollection<ProviderPayableTransaction> ProviderPayableTransactions { get; set; } = new List<ProviderPayableTransaction>();
 
-    [InverseProperty("Employee")]
-    public virtual ICollection<ProviderAccountPayment> ProviderAccountPayments { get; set; } = new List<ProviderAccountPayment>();
+    [InverseProperty("OpenedByEmployee")]
+    public virtual ICollection<ProviderPayable> ProviderPayables { get; set; } = new List<ProviderPayable>();
 
-    [InverseProperty("Employee")]
-    public virtual ICollection<ProviderAccount> ProviderAccounts { get; set; } = new List<ProviderAccount>();
+    [InverseProperty("CreatedByEmployee")]
+    public virtual ICollection<PurchaseOrder> PurchaseOrders { get; set; } = new List<PurchaseOrder>();
+
+    [InverseProperty("ReceivedByEmployee")]
+    public virtual ICollection<PurchaseReceipt> PurchaseReceipts { get; set; } = new List<PurchaseReceipt>();
 
     [InverseProperty("Employee")]
     public virtual ICollection<Sale> Sales { get; set; } = new List<Sale>();

@@ -69,5 +69,14 @@ public partial class Site
     public virtual ICollection<InventoryTransactionLine> InventoryTransactionLineTargetSites { get; set; } = new List<InventoryTransactionLine>();
 
     [InverseProperty("Site")]
+    public virtual ICollection<ProviderPayable> ProviderPayables { get; set; } = new List<ProviderPayable>();
+
+    [InverseProperty("Site")]
+    public virtual ICollection<PurchaseOrder> PurchaseOrders { get; set; } = new List<PurchaseOrder>();
+
+    [InverseProperty("Site")]
+    public virtual ICollection<PurchaseReceipt> PurchaseReceipts { get; set; } = new List<PurchaseReceipt>();
+
+    [InverseProperty("Site")]
     public virtual ICollection<Sale> Sales { get; set; } = new List<Sale>();
 }

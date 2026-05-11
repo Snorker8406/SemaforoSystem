@@ -87,9 +87,6 @@ public partial class Account
     public virtual CreditAccount? CreditAccount { get; set; }
 
     [InverseProperty("Account")]
-    public virtual ICollection<File> Files { get; set; } = new List<File>();
-
-    [InverseProperty("Account")]
     public virtual LayawayAccount? LayawayAccount { get; set; }
 
     [ForeignKey("OpenedByEmployeeId")]
