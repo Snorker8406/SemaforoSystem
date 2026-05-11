@@ -17,6 +17,8 @@ import { Route as accountTypesRoute } from './routes/accounts.types'
 import { Route as salesRoute } from './routes/sales'
 import { Route as saleDetailRoute } from './routes/sales.$saleId'
 import { Route as saleTypesRoute } from './routes/sales.types'
+import { Route as proveedoresRoute } from './routes/proveedores'
+import { Route as proveedoresDetailRoute } from './routes/proveedores.$providerId'
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -36,6 +38,8 @@ const routeTree = rootRoute.addChildren([
   salesRoute,
   saleDetailRoute,
   saleTypesRoute,
+  proveedoresRoute,
+  proveedoresDetailRoute,
 ])
 
 export const router = createRouter({
