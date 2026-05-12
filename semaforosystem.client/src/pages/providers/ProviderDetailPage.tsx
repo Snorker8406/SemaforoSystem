@@ -12,6 +12,7 @@ import {
   MapPinIcon,
   PhoneIcon,
   PlusIcon,
+  ReceiptIcon,
   StarIcon,
   Trash2Icon,
   UserIcon,
@@ -61,6 +62,7 @@ import ProviderFormDialog from './provider-form-dialog'
 import ProviderContactFormDialog from './provider-contact-form-dialog'
 import ProviderAddressFormDialog from './provider-address-form-dialog'
 import ProviderBankFormDialog from './provider-bank-form-dialog'
+import ProviderPayablesTab from './provider-payables-tab'
 
 // ── helpers ──────────────────────────────────────────────
 
@@ -252,6 +254,10 @@ export default function ProviderDetailPage() {
             </TabsTrigger>
             <TabsTrigger value='banks'>
               Cuentas bancarias ({data.bankAccounts.length})
+            </TabsTrigger>
+            <TabsTrigger value='payables' className='gap-1'>
+              <ReceiptIcon className='size-3.5' />
+              Cuentas por pagar
             </TabsTrigger>
           </TabsList>
 
@@ -462,6 +468,11 @@ export default function ProviderDetailPage() {
                 ))}
               </div>
             </SectionCard>
+          </TabsContent>
+
+          {/* Payables */}
+          <TabsContent value='payables'>
+            <ProviderPayablesTab providerId={id} />
           </TabsContent>
         </Tabs>
       </div>

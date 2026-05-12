@@ -19,6 +19,7 @@ import { Route as saleDetailRoute } from './routes/sales.$saleId'
 import { Route as saleTypesRoute } from './routes/sales.types'
 import { Route as proveedoresRoute } from './routes/proveedores'
 import { Route as proveedoresDetailRoute } from './routes/proveedores.$providerId'
+import { Route as proveedoresCuentasPorPagarRoute } from './routes/proveedores.cuentas-por-pagar'
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -39,6 +40,7 @@ const routeTree = rootRoute.addChildren([
   saleDetailRoute,
   saleTypesRoute,
   proveedoresRoute,
+  proveedoresCuentasPorPagarRoute,
   proveedoresDetailRoute,
 ])
 

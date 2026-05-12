@@ -79,7 +79,10 @@ const navigation: NavGroup[] = [
   {
     label: 'Administracion',
     items: [
-      { label: 'Proveedores', href: '/proveedores', icon: TruckIcon },
+      { label: 'Proveedores', href: '#', icon: TruckIcon, children: [
+        { label: 'Administrar Proveedores', href: '/proveedores' },
+        { label: 'Administrar Cuentas por Pagar', href: '/proveedores/cuentas-por-pagar' },
+      ] },
       {
         label: 'Escuelas',
         href: '#',
